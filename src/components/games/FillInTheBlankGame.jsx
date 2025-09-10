@@ -1,16 +1,19 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { LanguageContext } from '../../context/LanguageContext'; // Dosya yolu güncellendi
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
+const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, isMixedRush }) => {
+  const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const [gameData, setGameData] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [currentGameId, setCurrentGameId] = useState(null);
+  const nextTimeoutRef = useRef(null);
 
   const GAME_KEY = 'seenIds:fill-in-the-blank';
   const getGameId = (d) => d?.id || d?.game_id || d?._id || null;
@@ -32,13 +35,19 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
   };
 
   const fetchGame = async () => {
+    // clear any pending auto-next timeout when fetching a new question
+    if (nextTimeoutRef.current) {
+      clearTimeout(nextTimeoutRef.current);
+      nextTimeoutRef.current = null;
+    }
+
     setIsLoading(true);
     setGameData(null);
     setSelectedOption(null);
     setFeedback('');
     setCurrentGameId(null);
 
-    if (initialData) {
+  if (initialData) {
       const id = getGameId(initialData);
       if (isSeen(GAME_KEY, id)) {
         setFeedback('No new questions available.');
@@ -55,7 +64,11 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
     while (attempts > 0) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const response = await axios.get(`${API_URL}/api/games/fill-in-the-blank?lang=${targetLang}`);
+        // include category param when available; MixedRush will call without category
+        const url = categorySlug
+          ? `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}&category=${encodeURIComponent(categorySlug)}`
+          : `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}`;
+        const response = await axios.get(url);
         const id = getGameId(response.data);
         if (id && isSeen(GAME_KEY, id)) {
           attempts -= 1;
@@ -77,9 +90,24 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
     setIsLoading(false);
   };
 
+  // cleanup timeout on unmount
   useEffect(() => {
+    return () => {
+      if (nextTimeoutRef.current) {
+        clearTimeout(nextTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // If categorySlug is required by the backend, redirect user to selection page
+    if (!categorySlug && !isMixedRush) {
+      navigate('/categories/fill-in-the-blank');
+      return;
+    }
+
     fetchGame();
-  }, [targetLang]);
+  }, [targetLang, categorySlug]);
 
   const handleOptionClick = (option) => {
     if (feedback) return;
@@ -91,6 +119,11 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
       if (typeof onCorrectAnswer === 'function') {
         onCorrectAnswer();
       }
+      // auto-advance to next question after 1s
+      nextTimeoutRef.current = setTimeout(() => {
+        setFeedback('');
+        fetchGame();
+      }, 1000);
     } else {
       setFeedback('Wrong!');
     }
@@ -143,12 +176,14 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer }) => {
           <p className={`text-3xl font-bold ${feedback === 'Correct!' ? 'text-green-400' : 'text-red-400'}`}>
             {feedback}
           </p>
-          <button
-            onClick={fetchGame}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-          >
-            Next Question
-          </button>
+          {feedback === 'Wrong!' && (
+            <button
+              onClick={fetchGame}
+              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
+            >
+              Next Question
+            </button>
+          )}
         </div>
       )}
     </div>

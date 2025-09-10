@@ -8,6 +8,8 @@ import ImageMatchGame from './components/games/ImageMatchGame';
 import AdminPage from './pages/AdminPage';
 import FillInTheBlankGame from './components/games/FillInTheBlankGame';
 import MixedRushGame from './components/games/MixedRushGame';
+import CategorySelectionPage from './pages/CategorySelectionPage';
+import GamePage from './pages/GamePage';
 
 
 function App() {
@@ -22,10 +24,11 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
-          <Route path="/game/image-match" element={<ImageMatchGame />} />
-          <Route path="/game/sentence-scramble" element={<SentenceScrambleGame />} />
+          <Route path="/categories/:gameSlug" element={<CategorySelectionPage />} />
+          <Route path="/game/:gameSlug/:categorySlug" element={<GamePage />} />
+          
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/game/fill-in-the-blank" element={<FillInTheBlankGame />} />
+          
           <Route path="/game/mixed-rush" element={<MixedRushGame />} />
         </Routes>
       </main>

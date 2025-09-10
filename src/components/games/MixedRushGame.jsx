@@ -18,21 +18,22 @@ const MixedRushGame = () => {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Bir sonraki rastgele soruyu getiren fonksiyon
+  // Bir sonraki rastgele soruyu getiren fonksiyon GÜNCELLENDİ
   const fetchNextQuestion = useCallback(async () => {
     setIsLoading(true);
-    const gameTypes = ['sentence-scramble', 'image-match', 'fill-in-the-blank'];
-    const randomGameType = gameTypes[Math.floor(Math.random() * gameTypes.length)];
     
     try {
-      const response = await axios.get(`${API_URL}/api/games/${randomGameType}?lang=${targetLang}`);
+      // Artık tek ve doğru endpoint'i çağırıyoruz
+      const response = await axios.get(`${API_URL}/api/games/mixed-rush/random-question?lang=${targetLang}`);
+      
+      // Gelen veri zaten doğru formatta olduğu için direkt state'e set ediyoruz
       setCurrentQuestion({
-        type: randomGameType,
-        data: response.data
+        type: response.data.type,
+        data: response.data.data
       });
     } catch (error) {
-      console.error(`Failed to fetch data for ${randomGameType}`, error);
-      // Bir oyunda hata olursa, bir sonrakini denesin
+      console.error(`Failed to fetch data for Mixed Rush`, error);
+      // Bir hata olursa, bir sonrakini denesin
       setTimeout(fetchNextQuestion, 1000);
     } finally {
       setIsLoading(false);
@@ -68,6 +69,8 @@ const MixedRushGame = () => {
     setTimeLeft(GAME_DURATION);
     setIsGameOver(false);
     setIsLoading(true);
+    // fetchNextQuestion'ı direkt çağırmak yerine, useEffect'in tetiklemesini bekleyebiliriz.
+    // Ancak daha hızlı başlaması için direkt çağırmak daha iyi bir kullanıcı deneyimi sunar.
     fetchNextQuestion();
   };
 
@@ -79,7 +82,8 @@ const MixedRushGame = () => {
 
     const gameProps = {
       initialData: currentQuestion.data,
-      onCorrectAnswer: handleCorrectAnswer
+      onCorrectAnswer: handleCorrectAnswer,
+      isMixedRush: true // Bu prop, oyun bileşenlerinin kategori getirmeye çalışmasını engeller
     };
 
     switch (currentQuestion.type) {
