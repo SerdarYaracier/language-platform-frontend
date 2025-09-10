@@ -10,6 +10,7 @@ import FillInTheBlankGame from './components/games/FillInTheBlankGame';
 import MixedRushGame from './components/games/MixedRushGame';
 import CategorySelectionPage from './pages/CategorySelectionPage';
 import GamePage from './pages/GamePage';
+import LevelSelectionPage from './pages/LevelSelectionPage';
 
 
 function App() {
@@ -25,7 +26,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/categories/:gameSlug" element={<CategorySelectionPage />} />
-          <Route path="/game/:gameSlug/:categorySlug" element={<GamePage />} />
+          <Route path="/levels/:gameSlug/:categorySlug" element={<LevelSelectionPage />} />
+          
+          <Route path="/game/:gameSlug/:categorySlug/:level" element={<GamePage />} />
           
           <Route path="/admin" element={<AdminPage />} />
           

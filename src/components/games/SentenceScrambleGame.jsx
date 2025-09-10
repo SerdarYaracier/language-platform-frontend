@@ -88,7 +88,7 @@ const DroppableArea = ({ id, words, title }) => {
 };
 
 // 🟢 Ana oyun componenti
-const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug }) => {
+const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug, level }) => {
   const { targetLang } = useContext(LanguageContext);
   const [containers, setContainers] = useState({
     wordBank: [],
@@ -156,7 +156,9 @@ const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug }) =>
     while (attempts > 0) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        const response = await axios.get(`${API_URL}/api/games/sentence-scramble?lang=${targetLang}&category=${encodeURIComponent(categorySlug || '')}`);
+        const base = `${API_URL}/api/games/sentence-scramble?lang=${targetLang}&category=${encodeURIComponent(categorySlug || '')}`;
+        const url = level ? `${base}&level=${encodeURIComponent(level)}` : base;
+        const response = await axios.get(url);
         const id = getGameId(response.data);
         if (id && isSeen(GAME_KEY, id)) {
           attempts -= 1;
@@ -189,7 +191,7 @@ const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug }) =>
 
   useEffect(() => {
     fetchGame();
-  }, [targetLang, categorySlug]);
+  }, [targetLang, categorySlug, level]);
 
   const handleDragStart = event => {
     const { active } = event;

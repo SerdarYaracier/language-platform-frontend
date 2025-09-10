@@ -5,17 +5,17 @@ import ImageMatchGame from '../components/games/ImageMatchGame';
 import FillInTheBlankGame from '../components/games/FillInTheBlankGame';
 
 const GamePage = () => {
-  // URL'den hem oyunun türünü hem de kategorisini alıyoruz
-  const { gameSlug, categorySlug } = useParams();
+  // URL'den artık level'ı da alıyoruz
+  const { gameSlug, categorySlug, level } = useParams();
 
-  // Her oyuna artık categorySlug'ı bir prop olarak iletiyoruz
+  // Her oyuna artık categorySlug ve level'ı bir prop olarak iletiyoruz
   switch (gameSlug) {
     case 'sentence-scramble':
-      return <SentenceScrambleGame categorySlug={categorySlug} />;
+      return <SentenceScrambleGame categorySlug={categorySlug} level={level} />;
     case 'image-match':
-      return <ImageMatchGame categorySlug={categorySlug} />;
+      return <ImageMatchGame categorySlug={categorySlug} level={level} />;
     case 'fill-in-the-blank':
-      return <FillInTheBlankGame categorySlug={categorySlug} />;
+      return <FillInTheBlankGame categorySlug={categorySlug} level={level} />;
     default:
       return <p>Game not found!</p>;
   }

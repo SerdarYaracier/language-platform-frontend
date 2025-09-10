@@ -5,7 +5,7 @@ import { LanguageContext } from '../../context/LanguageContext'; // Dosya yolu g
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, isMixedRush }) => {
+const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const [gameData, setGameData] = useState(null);
@@ -64,10 +64,11 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, isMixe
     while (attempts > 0) {
       try {
         // eslint-disable-next-line no-await-in-loop
-        // include category param when available; MixedRush will call without category
+        // include category and level params when available; MixedRush will call without category
+        const base = `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}`;
         const url = categorySlug
-          ? `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}&category=${encodeURIComponent(categorySlug)}`
-          : `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}`;
+          ? `${base}&category=${encodeURIComponent(categorySlug)}${level ? `&level=${encodeURIComponent(level)}` : ''}`
+          : `${base}${level ? `&level=${encodeURIComponent(level)}` : ''}`;
         const response = await axios.get(url);
         const id = getGameId(response.data);
         if (id && isSeen(GAME_KEY, id)) {
@@ -107,7 +108,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, isMixe
     }
 
     fetchGame();
-  }, [targetLang, categorySlug]);
+  }, [targetLang, categorySlug, level]);
 
   const handleOptionClick = (option) => {
     if (feedback) return;

@@ -42,15 +42,16 @@ const CategorySelectionPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map(category => (
             <Link
-              key={category.id}
-              // 3. Linki de dinamik olarak oluşturuyoruz: /game/image-match/animals
-              to={`/game/${gameSlug}/${category.slug}`}
-              className="bg-gray-800 hover:bg-gray-700 p-8 rounded-lg transition-transform transform hover:scale-105"
+            key={category.id}
+            // Link artık /levels/... adresine gidiyor
+            to={`/levels/${gameSlug}/${category.slug}`}
+            className="bg-gray-800 hover:bg-gray-700 p-8 rounded-lg transition-transform transform hover:scale-105"
             >
-              <h2 className="text-2xl font-bold text-white">
+            <h2 className="text-2xl font-bold text-white">
                 {category.name[targetLang] || category.name['en']}
-              </h2>
+            </h2>
             </Link>
+
           ))}
         </div>
       ) : (

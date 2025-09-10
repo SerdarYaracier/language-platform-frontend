@@ -6,7 +6,7 @@ import { LanguageContext } from '../../context/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, isMixedRush }) => {
+const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isMixedRush }) => {
   // Debug loglar kaldırıldı
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
@@ -42,14 +42,15 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, isMixedRus
     // If no categorySlug and not running inside MixedRush, redirect to selection
     if (!categorySlug && !isMixedRush) {
       console.warn('No categorySlug provided to ImageMatchGame — redirecting to selection.');
-      navigate('/game/image-match');
+      navigate('/categories/image-match');
       return;
     }
 
-    // include category param only when provided
+    // include category and level params when provided
+    const base = `${API_URL}/api/games/image-match?lang=${encodeURIComponent(lang)}`;
     const url = categorySlug
-      ? `${API_URL}/api/games/image-match?lang=${encodeURIComponent(lang)}&category=${encodeURIComponent(categorySlug)}`
-      : `${API_URL}/api/games/image-match?lang=${encodeURIComponent(lang)}`;
+      ? `${base}&category=${encodeURIComponent(categorySlug)}${level ? `&level=${encodeURIComponent(level)}` : ''}`
+      : `${base}${level ? `&level=${encodeURIComponent(level)}` : ''}`;
     console.debug('Fetching ImageMatchGame:', url);
 
     try {
@@ -75,7 +76,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, isMixedRus
     } finally {
       setIsLoading(false);
     }
-  }, [targetLang, categorySlug]); // Bağımlılıkları ekliyoruz
+  }, [targetLang, categorySlug, level]); // Bağımlılıkları ekliyoruz
 
   useEffect(() => {
     if (!categorySlug && !isMixedRush) {
