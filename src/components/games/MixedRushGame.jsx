@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import { LanguageContext } from '../../context/LanguageContext';
 
 // Yönetilecek oyun bileşenlerini import ediyoruz
@@ -7,27 +8,34 @@ import SentenceScrambleGame from './SentenceScrambleGame';
 import ImageMatchGame from './ImageMatchGame';
 import FillInTheBlankGame from './FillInTheBlankGame';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL;
 const GAME_DURATION = 75; // Saniye cinsinden oyun süresi
 
 const MixedRushGame = () => {
+  const { user, refreshProfile } = useAuth();
   const { targetLang } = useContext(LanguageContext);
+  
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [score, setScore] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Bir sonraki rastgele soruyu getiren fonksiyon GÜNCELLENDİ
+  // Puan haritası
+  const POINTS_MAP = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
+
+  // useRef, zamanlayıcı bittiğinde skorun GÜNCEL değerine ulaşmak için gereklidir.
+  const scoreRef = useRef(score);
+
+  // score state'i her değiştiğinde, ref'in de değerini güncelliyoruz.
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  // Bir sonraki rastgele soruyu getiren fonksiyon
   const fetchNextQuestion = useCallback(async () => {
     setIsLoading(true);
-    
     try {
-      // Artık tek ve doğru endpoint'i çağırıyoruz (api client kullanılarak)
-      const response = await api.get(`${API_URL}/api/games/mixed-rush/random-question`);
-
-      // Gelen veri zaten doğru formatta olduğu için direkt state'e set ediyoruz
-      // Gelen seviyeyi doğrudan kaydediyoruz
+      const response = await api.get(`/api/games/mixed-rush/random-question?lang=${targetLang}`);
       setCurrentQuestion({
         type: response.data.type,
         data: response.data.data,
@@ -35,53 +43,73 @@ const MixedRushGame = () => {
       });
     } catch (error) {
       console.error(`Failed to fetch data for Mixed Rush`, error);
-      // Bir hata olursa, bir sonrakini denesin
-      setTimeout(fetchNextQuestion, 1000);
     } finally {
       setIsLoading(false);
     }
   }, [targetLang]);
 
-  // YENİ: Puan haritası
-  const POINTS_MAP = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
-
-  // YENİ: Oyun bitiminde skoru kaydeden fonksiyon
-  const submitFinalScore = useCallback(async (finalScore) => {
+  // Oyun bitiminde skoru kaydeden fonksiyon
+  const submitFinalScore = useCallback(async () => {
+    if (!user) return;
     try {
+      // Skoru doğrudan en güncel değeri tutan scoreRef'ten alıyoruz
       await api.post('/api/progress/submit-mixed-rush-score', {
-        score: finalScore
+        score: scoreRef.current 
       });
-      console.log('Mixed Rush final score submitted:', finalScore);
+      console.log('Mixed Rush final score submitted:', scoreRef.current);
+      if (refreshProfile) {
+        refreshProfile();
+      }
     } catch (error) {
       console.error('Failed to submit Mixed Rush score', error);
     }
-  }, []);
+  }, [user, refreshProfile]);
 
-  // Zamanlayıcı için useEffect
+  // Zamanlayıcıyı ve oyun akışını yöneten TEK useEffect
   useEffect(() => {
+    // Oyun bittiyse zamanlayıcıyı çalıştırma
     if (isGameOver) return;
 
+    // Oyun ilk başladığında soruyu getir
     if (timeLeft === GAME_DURATION) {
-        fetchNextQuestion(); // Oyun başladığında ilk soruyu getir
+      fetchNextQuestion();
     }
 
+    // Zamanlayıcıyı çalıştır
     if (timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else {
+    } 
+    // Süre bittiğinde
+    else {
       setIsGameOver(true);
-      setCurrentQuestion(null); // Oyun bitince soruyu temizle
-      // Yeni: süre bittiğinde skoru backend'e gönder
-      submitFinalScore(score);
+      setCurrentQuestion(null); // Aktif soruyu temizle
+      submitFinalScore(); // Skoru gönder
     }
-  }, [timeLeft, isGameOver, fetchNextQuestion, score, submitFinalScore]);
+  }, [timeLeft, isGameOver, fetchNextQuestion, submitFinalScore]);
 
   // Doğru cevap verildiğinde tetiklenecek fonksiyon
   const handleCorrectAnswer = () => {
-    // Sorunun seviyesine göre puan ekle
+    console.clear(); // Her seferinde konsolu temizle
+    console.log("--- handleCorrectAnswer triggered! ---");
+
+    // 1. O anki sorunun ne olduğunu görelim
+    console.log("Current Question Object:", currentQuestion);
+
+    // 2. Sorunun seviyesini bulmaya çalışalım
     const level = currentQuestion?.level;
+    console.log("Level found:", level);
+
+    // 3. Puan haritasından bu seviyenin karşılığını bulalım
     const points = POINTS_MAP[level] || 0;
-    setScore(prev => prev + points);
+    console.log(`Points calculated: ${points} (from level ${level})`);
+
+    // 4. Mevcut skoru ve yeni skoru görelim
+    console.log("Score before update:", score);
+    const newScore = score + points;
+    console.log("Score after update will be:", newScore);
+    
+    setScore(newScore);
     fetchNextQuestion();
   };
 
@@ -91,9 +119,7 @@ const MixedRushGame = () => {
     setTimeLeft(GAME_DURATION);
     setIsGameOver(false);
     setIsLoading(true);
-    // fetchNextQuestion'ı direkt çağırmak yerine, useEffect'in tetiklemesini bekleyebiliriz.
-    // Ancak daha hızlı başlaması için direkt çağırmak daha iyi bir kullanıcı deneyimi sunar.
-    fetchNextQuestion();
+    // useEffect, timeLeft değiştiği için oyunu otomatik başlatacak
   };
 
   // Ekrana hangi oyunun çizileceğini belirleyen fonksiyon
@@ -101,14 +127,12 @@ const MixedRushGame = () => {
     if (isLoading || !currentQuestion) {
       return <div className="text-center text-xl">Loading Next Question...</div>;
     }
-
     const gameProps = {
       initialData: currentQuestion.data,
       onCorrectAnswer: handleCorrectAnswer,
-      isMixedRush: true, // Bu prop, oyun bileşenlerinin kategori getirmeye çalışmasını engeller
+      isMixedRush: true,
       level: currentQuestion.level
     };
-
     switch (currentQuestion.type) {
       case 'sentence-scramble':
         return <SentenceScrambleGame {...gameProps} />;
@@ -127,7 +151,8 @@ const MixedRushGame = () => {
       <div className="bg-gray-800 p-8 rounded-lg w-full max-w-md mx-auto text-center">
         <h2 className="text-4xl text-red-500 font-bold mb-4">Time's Up!</h2>
         <p className="text-2xl mb-6">Your final score is:</p>
-        <p className="text-6xl font-bold text-yellow-400 mb-8">{score}</p>
+        {/* 'score' state'ini değil, her zaman en güncel olan ref'i göster */}
+        <p className="text-6xl font-bold text-yellow-400 mb-8">{scoreRef.current}</p>
         <button
           onClick={handlePlayAgain}
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg"
@@ -157,4 +182,3 @@ const MixedRushGame = () => {
 };
 
 export default MixedRushGame;
-
