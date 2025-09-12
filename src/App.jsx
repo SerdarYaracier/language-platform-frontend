@@ -13,6 +13,8 @@ import GamePage from './pages/GamePage';
 import LevelSelectionPage from './pages/LevelSelectionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProfilePage from './pages/ProfilePage';
+import LeaderboardPage from './pages/LeaderBoardPage';
+
 
 
 function App() {
@@ -35,6 +37,7 @@ function App() {
           <Route path="/admin" element={<AdminPage />} />
           
           <Route path="/game/mixed-rush" element={<MixedRushGame />} />
+          <Route path="/leaderboards" element={<LeaderboardPage />} />
           
           {/* YENİ GÜVENLİ PROFİL ROTASI */}
           <Route 

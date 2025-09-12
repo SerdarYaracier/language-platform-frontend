@@ -44,6 +44,12 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* ... Admin, Profil linkleri ... */}
+          <Link to="/leaderboards" className="text-sm text-gray-300 hover:text-white">Leaderboards</Link>
+          {/* ... Dil Seçimi ve Login/Logout ... */}
+        </div>
+
+        <div className="flex items-center gap-4">
           {/* User area */}
           {user ? (
             <div className="flex items-center gap-4">
