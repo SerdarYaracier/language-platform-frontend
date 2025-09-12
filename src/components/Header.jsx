@@ -47,7 +47,10 @@ const Header = () => {
           {/* User area */}
           {user ? (
             <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-300 hidden sm:block">{user.email}</span>
+              {/* Email'i profile linki yap */}
+              <Link to="/profile" className="text-sm text-gray-300 hover:text-white hidden sm:block">
+                {user.email}
+              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300"

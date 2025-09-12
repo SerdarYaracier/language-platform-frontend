@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api';
 import { LanguageContext } from '../../context/LanguageContext'; // Dosya yolu güncellendi
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
 const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
+  const { refreshProfile } = useAuth();
   const [gameData, setGameData] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [feedback, setFeedback] = useState('');
@@ -69,7 +71,13 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
         const url = categorySlug
           ? `${base}&category=${encodeURIComponent(categorySlug)}${level ? `&level=${encodeURIComponent(level)}` : ''}`
           : `${base}${level ? `&level=${encodeURIComponent(level)}` : ''}`;
-        const response = await axios.get(url);
+        // If we're running inside MixedRush, the parent provides initialData; don't fetch here
+        if (isMixedRush) {
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await api.get(url);
         const id = getGameId(response.data);
         if (id && isSeen(GAME_KEY, id)) {
           attempts -= 1;
@@ -108,7 +116,22 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
     }
 
     fetchGame();
-  }, [targetLang, categorySlug, level]);
+  }, [targetLang, categorySlug, level, isMixedRush]);
+
+  const submitScore = async () => {
+    if (isMixedRush) return;
+    try {
+      await api.post('/api/progress/submit-score', {
+        gameSlug: 'fill-in-the-blank',
+        categorySlug: categorySlug,
+        level: level,
+      });
+      console.log('Score submitted for fill-in-the-blank');
+  if (typeof refreshProfile === 'function') refreshProfile();
+    } catch (error) {
+      console.error('Failed to submit score', error);
+    }
+  };
 
   const handleOptionClick = (option) => {
     if (feedback) return;
@@ -118,13 +141,15 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
       setFeedback('Correct!');
       if (currentGameId) addSeen(GAME_KEY, currentGameId);
       if (typeof onCorrectAnswer === 'function') {
-        onCorrectAnswer();
+        setTimeout(onCorrectAnswer, 1000);
+      } else {
+        submitScore();
+        // auto-advance to next question after 1s
+        nextTimeoutRef.current = setTimeout(() => {
+          setFeedback('');
+          fetchGame();
+        }, 1000);
       }
-      // auto-advance to next question after 1s
-      nextTimeoutRef.current = setTimeout(() => {
-        setFeedback('');
-        fetchGame();
-      }, 1000);
     } else {
       setFeedback('Wrong!');
     }

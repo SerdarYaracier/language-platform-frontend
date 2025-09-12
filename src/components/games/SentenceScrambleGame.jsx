@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, memo } from 'react';
-import axios from 'axios';
+import api from '../../api';
 import {
   DndContext,
   DragOverlay,
@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LanguageContext } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -88,8 +89,9 @@ const DroppableArea = ({ id, words, title }) => {
 };
 
 // 🟢 Ana oyun componenti
-const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug, level }) => {
+const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, isMixedRush }) => {
   const { targetLang } = useContext(LanguageContext);
+  const { refreshProfile } = useAuth();
   const [containers, setContainers] = useState({
     wordBank: [],
     userSentence: []
@@ -131,7 +133,7 @@ const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug, leve
     setFeedback('');
     setCurrentGameId(null);
 
-    if (initialData) {
+  if (initialData) {
       const id = getGameId(initialData);
       if (isSeen(GAME_KEY, id)) {
         setFeedback('No new questions available.');
@@ -153,12 +155,18 @@ const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug, leve
 
     // Try to fetch up to 5 times to find an unseen question
     let attempts = 5;
+    // If we're running inside MixedRush, the parent provides initialData; don't fetch here
+    if (isMixedRush) {
+      setIsLoading(false);
+      return;
+    }
+
     while (attempts > 0) {
       try {
         // eslint-disable-next-line no-await-in-loop
         const base = `${API_URL}/api/games/sentence-scramble?lang=${targetLang}&category=${encodeURIComponent(categorySlug || '')}`;
         const url = level ? `${base}&level=${encodeURIComponent(level)}` : base;
-        const response = await axios.get(url);
+        const response = await api.get(url);
         const id = getGameId(response.data);
         if (id && isSeen(GAME_KEY, id)) {
           attempts -= 1;
@@ -243,13 +251,30 @@ const SentenceScrambleGame = ({ initialData, onCorrectAnswer, categorySlug, leve
     }
   };
 
+  const submitScore = async () => {
+    if (isMixedRush) return;
+    try {
+      await api.post('/api/progress/submit-score', {
+        gameSlug: 'sentence-scramble',
+        categorySlug: categorySlug,
+        level: level,
+      });
+      console.log('Score submitted for sentence-scramble');
+  if (typeof refreshProfile === 'function') refreshProfile();
+    } catch (error) {
+      console.error('Failed to submit score', error);
+    }
+  };
+
   const checkAnswer = () => {
     const userSentence = containers.userSentence.map(w => w.content).join(' ');
     if (userSentence === correctSentence) {
       setFeedback('🎉 Congratulations! Correct sentence!');
       if (currentGameId) addSeen(GAME_KEY, currentGameId);
       if (typeof onCorrectAnswer === 'function') {
-        onCorrectAnswer();
+        setTimeout(onCorrectAnswer, 1000);
+      } else {
+        submitScore();
       }
     } else {
       setFeedback('❌ Try again!');

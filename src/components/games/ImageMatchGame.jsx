@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../../api'; // use api client
 import { LanguageContext } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -10,13 +11,14 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
   // Debug loglar kaldırıldı
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
+  const { refreshProfile } = useAuth();
   const [gameData, setGameData] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   // useEffect'i useCallback içine alarak daha stabil hale getiriyoruz
-  const fetchGame = React.useCallback(async () => {
+  const fetchGame = useCallback(async () => {
     // Basic validations
     if (!API_URL) {
       console.error('VITE_API_BASE_URL is not set');
@@ -46,6 +48,12 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
       return;
     }
 
+    // MixedRush should not trigger its own fetch
+    if (isMixedRush) {
+      setIsLoading(false);
+      return;
+    }
+
     // include category and level params when provided
     const base = `${API_URL}/api/games/image-match?lang=${encodeURIComponent(lang)}`;
     const url = categorySlug
@@ -54,7 +62,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
     console.debug('Fetching ImageMatchGame:', url);
 
     try {
-      const response = await axios.get(url);
+      const response = await api.get(url);
       if (!response || !response.data) {
         setFeedback('No data returned from server.');
         return;
@@ -76,7 +84,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
     } finally {
       setIsLoading(false);
     }
-  }, [targetLang, categorySlug, level]); // Bağımlılıkları ekliyoruz
+  }, [targetLang, categorySlug, level, initialData, isMixedRush]); // Bağımlılıkları ekliyoruz
 
   useEffect(() => {
     if (!categorySlug && !isMixedRush) {
@@ -85,8 +93,29 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
       return;
     }
 
-    fetchGame();
-  }, [fetchGame]); // fetchGame fonksiyonu değiştiğinde (yani bağımlılıkları değiştiğinde) useEffect'i tekrar çalıştır
+    if (!initialData) {
+      fetchGame();
+    } else {
+      setGameData(initialData);
+      setIsLoading(false);
+    }
+  }, [initialData, fetchGame, categorySlug, isMixedRush, navigate]);
+
+  const submitScore = async () => {
+    if (isMixedRush) return; // MixedRush scored externally
+    try {
+      await api.post('/api/progress/submit-score', {
+        gameSlug: 'image-match',
+        categorySlug: categorySlug,
+        level: level,
+      });
+  console.log('Score submitted, refreshing profile...');
+  // Refresh global profile so UI reflects new progress/points
+  if (typeof refreshProfile === 'function') refreshProfile();
+    } catch (error) {
+      console.error('Failed to submit score', error);
+    }
+  };
 
   const handleOptionClick = (option) => {
     if (feedback) return;
@@ -94,16 +123,16 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
     setSelectedOption(option);
     if (option === (gameData && gameData.answer)) {
       setFeedback('Correct!');
-      
+      // If MixedRush, inform parent after a short delay
       if (typeof onCorrectAnswer === 'function') {
-        // MixedRush modunda, onCorrectAnswer callback'ini çağır
-        onCorrectAnswer();
+        setTimeout(onCorrectAnswer, 1000);
       } else {
-        // Normal modda, otomatik olarak sonraki soruya geç
+        // Normal mode: submit score and auto-advance
+        submitScore();
         setTimeout(() => {
           setFeedback('');
           fetchGame();
-        }, 1000); // 1 saniye bekle, sonra yeni soruyu getir
+        }, 1000);
       }
     } else {
       setFeedback('Wrong!');

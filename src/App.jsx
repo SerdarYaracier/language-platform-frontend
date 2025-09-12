@@ -11,6 +11,8 @@ import MixedRushGame from './components/games/MixedRushGame';
 import CategorySelectionPage from './pages/CategorySelectionPage';
 import GamePage from './pages/GamePage';
 import LevelSelectionPage from './pages/LevelSelectionPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import ProfilePage from './pages/ProfilePage';
 
 
 function App() {
@@ -33,6 +35,16 @@ function App() {
           <Route path="/admin" element={<AdminPage />} />
           
           <Route path="/game/mixed-rush" element={<MixedRushGame />} />
+          
+          {/* YENİ GÜVENLİ PROFİL ROTASI */}
+          <Route 
+            path="/profile" 
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </main>
     </div>

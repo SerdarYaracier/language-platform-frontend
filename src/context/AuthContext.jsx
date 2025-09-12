@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../SupabaseClient';
 
 const AuthContext = createContext();
@@ -8,49 +8,47 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Sayfa ilk yüklendiğinde mevcut oturumu kontrol et
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
-    };
+    });
 
-    getSession();
-
-    // Oturum durumundaki değişiklikleri dinle (login, logout vb.)
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    // Component unmount olduğunda listener'ı temizle
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
-  // Supabase fonksiyonlarını sarmalayan değerler
-  const value = {
-    signUp: (data) => supabase.auth.signUp(data),
-    signIn: (data) => supabase.auth.signInWithPassword(data),
-    signOut: () => supabase.auth.signOut(),
-    user,
+  // Placeholder refreshProfile function for compatibility
+  const refreshProfile = () => {
+    // This will be used by games to refresh profile after score submission
+    console.log('Profile refresh requested');
   };
 
-  // Yükleme tamamlanana kadar çocuk bileşenleri render etme
+  const value = useMemo(() => ({
+    user,
+    refreshProfile,
+    signIn: (data) => supabase.auth.signInWithPassword(data),
+    signUp: (data) => supabase.auth.signUp(data),
+    signOut: () => supabase.auth.signOut(),
+  }), [user]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-900 text-white">
+        <p className="text-xl">Authenticating...</p>
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
 
-// Bu custom hook, bileşenlerden context'e kolayca erişmemizi sağlar
+// 3. Diğer bileşenlerden context'e kolayca erişmek için bir custom hook
 export const useAuth = () => {
   return useContext(AuthContext);
 };
-
-
-
 

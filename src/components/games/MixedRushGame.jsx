@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext } from 'react';
-import axios from 'axios';
+import api from '../../api';
 import { LanguageContext } from '../../context/LanguageContext';
 
 // Yönetilecek oyun bileşenlerini import ediyoruz
@@ -23,13 +23,15 @@ const MixedRushGame = () => {
     setIsLoading(true);
     
     try {
-      // Artık tek ve doğru endpoint'i çağırıyoruz
-      const response = await axios.get(`${API_URL}/api/games/mixed-rush/random-question?lang=${targetLang}`);
-      
+      // Artık tek ve doğru endpoint'i çağırıyoruz (api client kullanılarak)
+      const response = await api.get(`${API_URL}/api/games/mixed-rush/random-question`);
+
       // Gelen veri zaten doğru formatta olduğu için direkt state'e set ediyoruz
+      // Gelen seviyeyi doğrudan kaydediyoruz
       setCurrentQuestion({
         type: response.data.type,
-        data: response.data.data
+        data: response.data.data,
+        level: response.data.level
       });
     } catch (error) {
       console.error(`Failed to fetch data for Mixed Rush`, error);
@@ -39,6 +41,21 @@ const MixedRushGame = () => {
       setIsLoading(false);
     }
   }, [targetLang]);
+
+  // YENİ: Puan haritası
+  const POINTS_MAP = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
+
+  // YENİ: Oyun bitiminde skoru kaydeden fonksiyon
+  const submitFinalScore = useCallback(async (finalScore) => {
+    try {
+      await api.post('/api/progress/submit-mixed-rush-score', {
+        score: finalScore
+      });
+      console.log('Mixed Rush final score submitted:', finalScore);
+    } catch (error) {
+      console.error('Failed to submit Mixed Rush score', error);
+    }
+  }, []);
 
   // Zamanlayıcı için useEffect
   useEffect(() => {
@@ -54,12 +71,17 @@ const MixedRushGame = () => {
     } else {
       setIsGameOver(true);
       setCurrentQuestion(null); // Oyun bitince soruyu temizle
+      // Yeni: süre bittiğinde skoru backend'e gönder
+      submitFinalScore(score);
     }
-  }, [timeLeft, isGameOver, fetchNextQuestion]);
+  }, [timeLeft, isGameOver, fetchNextQuestion, score, submitFinalScore]);
 
   // Doğru cevap verildiğinde tetiklenecek fonksiyon
   const handleCorrectAnswer = () => {
-    setScore(prev => prev + 1);
+    // Sorunun seviyesine göre puan ekle
+    const level = currentQuestion?.level;
+    const points = POINTS_MAP[level] || 0;
+    setScore(prev => prev + points);
     fetchNextQuestion();
   };
 
@@ -83,7 +105,8 @@ const MixedRushGame = () => {
     const gameProps = {
       initialData: currentQuestion.data,
       onCorrectAnswer: handleCorrectAnswer,
-      isMixedRush: true // Bu prop, oyun bileşenlerinin kategori getirmeye çalışmasını engeller
+      isMixedRush: true, // Bu prop, oyun bileşenlerinin kategori getirmeye çalışmasını engeller
+      level: currentQuestion.level
     };
 
     switch (currentQuestion.type) {
