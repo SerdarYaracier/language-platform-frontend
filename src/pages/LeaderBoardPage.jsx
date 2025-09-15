@@ -11,6 +11,7 @@ const LeaderboardPage = () => {
     fill_in_the_blank: [],
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('total_score');
 
   useEffect(() => {
     const fetchLeaderboards = async () => {
@@ -39,15 +40,115 @@ const LeaderboardPage = () => {
     fetchLeaderboards();
   }, []);
 
+  const tabs = [
+    { id: 'total_score', title: 'Overall Champions', icon: '🏆', color: 'from-yellow-600 to-yellow-700' },
+    { id: 'mixed_rush', title: 'Speed Masters', icon: '⚡', color: 'from-red-600 to-red-700' },
+    { id: 'image_match', title: 'Visual Experts', icon: '🖼️', color: 'from-purple-600 to-purple-700' },
+    { id: 'sentence_scramble', title: 'Word Wizards', icon: '🔤', color: 'from-cyan-600 to-cyan-700' },
+    { id: 'fill_in_the_blank', title: 'Grammar Gurus', icon: '📝', color: 'from-green-600 to-green-700' },
+  ];
+
+  const getTabButtonClass = (tabId) => {
+    const baseClass = 'flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105';
+    if (activeTab === tabId) {
+      const activeTab = tabs.find(t => t.id === tabId);
+      return `${baseClass} bg-gradient-to-r ${activeTab.color} text-white shadow-lg border border-white/20`;
+    }
+    return `${baseClass} bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 hover:text-white border border-gray-600/30`;
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <h1 className="text-5xl font-bold mb-8 text-center text-yellow-400">Leaderboards</h1>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <LeaderboardTable title="Total Score" scores={leaderboards.total_score} isLoading={isLoading} />
-        <LeaderboardTable title="Mixed Rush" scores={leaderboards.mixed_rush} isLoading={isLoading} />
-        <LeaderboardTable title="Image Match" scores={leaderboards.image_match} isLoading={isLoading} />
-        <LeaderboardTable title="Sentence Scramble" scores={leaderboards.sentence_scramble} isLoading={isLoading} />
-        <LeaderboardTable title="Fill in the Blank" scores={leaderboards.fill_in_the_blank} isLoading={isLoading} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900/15 to-gray-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent animate-in fade-in-50 duration-700">
+            🏆 Hall of Fame
+          </h1>
+          <p className="text-xl text-gray-300 mb-6 animate-in slide-in-from-bottom-2 duration-500">
+            Celebrate the top performers across all language learning games
+          </p>
+          <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-yellow-600 mx-auto rounded-full"></div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex flex-wrap justify-center gap-3 mb-8 animate-in fade-in-50 duration-500">
+          {tabs.map((tab, index) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={getTabButtonClass(tab.id)}
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <span className="text-lg">{tab.icon}</span>
+              <span className="hidden sm:inline text-sm font-semibold">{tab.title}</span>
+              <span className="sm:hidden text-sm font-semibold">
+                {tab.title.split(' ')[0]}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Active Leaderboard */}
+        <div className="flex justify-center animate-in fade-in-50 slide-in-from-bottom-3 duration-700">
+          <div className="w-full max-w-2xl">
+            {/* Enhanced title for active tab */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-800/50 to-gray-700/50 px-6 py-3 rounded-2xl border border-gray-600/30 backdrop-blur-sm">
+                <span className="text-3xl">
+                  {tabs.find(t => t.id === activeTab)?.icon}
+                </span>
+                <h2 className="text-2xl font-bold text-white">
+                  {tabs.find(t => t.id === activeTab)?.title}
+                </h2>
+              </div>
+            </div>
+
+            {/* Leaderboard Table */}
+            <div className="transform hover:scale-[1.02] transition-transform duration-300">
+              <LeaderboardTable 
+                title=""
+                scores={leaderboards[activeTab]} 
+                isLoading={isLoading}
+                maxDisplay={10}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="mt-12 grid grid-cols-2 lg:grid-cols-5 gap-4 animate-in fade-in-50 duration-700">
+          {tabs.map((tab, index) => (
+            <div 
+              key={tab.id}
+              className="bg-gradient-to-br from-gray-800/40 to-gray-700/40 backdrop-blur-sm p-4 rounded-xl border border-gray-600/20 text-center hover:scale-105 transition-all duration-300 cursor-pointer"
+              onClick={() => setActiveTab(tab.id)}
+              style={{ animationDelay: `${index * 150}ms` }}
+            >
+              <div className="text-2xl mb-2">{tab.icon}</div>
+              <div className="text-sm text-gray-300 mb-1">{tab.title}</div>
+              <div className="text-lg font-bold text-white">
+                {isLoading ? '...' : leaderboards[tab.id]?.length || 0}
+              </div>
+              <div className="text-xs text-gray-400">players</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center mt-12 text-gray-400 text-sm animate-in fade-in-50 duration-700">
+          <p>Leaderboards are updated in real-time. Keep playing to climb the ranks!</p>
+          <div className="flex justify-center gap-4 mt-4">
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              Live Rankings
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+              Updated Daily
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

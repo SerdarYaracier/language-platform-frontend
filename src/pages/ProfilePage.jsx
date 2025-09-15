@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import AchievementsList from '../components/AchievementsList';
-import FriendsModal from '../components/FriendsModal'; // Yeni modalı import et
+import FriendsModal from '../components/FriendsModal';
 
 // Yardımcı fonksiyon
 const getGameName = (slug) => {
@@ -14,12 +14,21 @@ const getGameName = (slug) => {
   return names[slug] || 'Unknown Game';
 };
 
+const getGameIcon = (slug) => {
+  const icons = {
+    'sentence-scramble': '🧩',
+    'image-match': '🖼️',
+    'fill-in-the-blank': '📝',
+  };
+  return icons[slug] || '🎮';
+};
+
 const ProfilePage = () => {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false); // Modal state'i
+  const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -55,86 +64,154 @@ const ProfilePage = () => {
   }, [user]);
 
   if (isLoading) {
-    return <p className="text-center text-xl">Loading profile...</p>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900/20 to-gray-900 flex items-center justify-center">
+        <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-8 rounded-2xl text-center border border-cyan-400/20 animate-pulse">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <div className="text-xl text-cyan-200">Loading profile...</div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <p className="text-center text-red-400">{error}</p>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900/20 to-gray-900 flex items-center justify-center">
+        <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 backdrop-blur-sm p-8 rounded-2xl text-center border border-red-400/30">
+          <div className="text-2xl text-red-300 mb-4">⚠️</div>
+          <div className="text-xl text-red-300">{error}</div>
+        </div>
+      </div>
+    );
   }
 
   if (!profileData) {
-    return <p className="text-center text-gray-400">Could not find profile data.</p>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900/20 to-gray-900 flex items-center justify-center">
+        <div className="text-center text-gray-400">Could not find profile data.</div>
+      </div>
+    );
   }
 
   // Backend'den gelen veriyi ayrıştıralım
-  // Backend rpc may return [{...}] or direct profile object. Support both shapes.
   const profileDetails = (Array.isArray(profileData) && profileData[0]) || profileData.profile || profileData;
-  // game scores may be provided as profileData.game_scores or profileData.game_scores_list
   const gameScores = profileData.game_scores || profileData.game_scores_list || [];
   
-  // avatar fallback: use avatar_url from profileDetails or a simple generated placeholder
+  // avatar fallback
   const avatarUrl = profileDetails.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent((profileDetails.username || user.email || 'User'))}&background=1a202c&color=ffffff&rounded=true&size=256`;
 
   return (
-    <> {/* Fragment kullanarak modalı da render edebiliyoruz */}
-      <div className="bg-gray-800 p-8 rounded-lg w-full max-w-4xl mx-auto text-white">
-        <div className="flex flex-col items-center mb-6">
-          <img src={avatarUrl} alt="avatar" className="w-28 h-28 rounded-full object-cover border-4 border-gray-900 shadow-lg" />
-          <h1 className="text-4xl font-bold mt-4 text-cyan-400">{profileDetails.username || user.email}'s Profile</h1>
-          <p className="text-lg text-gray-400 mt-2">{user.email}</p>
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyan-900/20 to-gray-900 text-white">
+        <div className="container mx-auto px-6 py-8">
           
-          {/* YENİ ARKADAŞLAR BUTONU */}
-          <button 
-            onClick={() => setIsFriendsModalOpen(true)}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded transition-colors"
-          >
-            Friends
-          </button>
-        </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Sol Taraf: Genel Skorlar */}
-        <div className="md:col-span-1 bg-gray-900 p-6 rounded-md text-center">
-          <h2 className="text-2xl font-bold mb-4">Overall Stats</h2>
-          <div className="mb-4">
-            <p className="text-lg font-semibold text-gray-300">Total Score</p>
-            {/* DEĞİŞİKLİK BURADA: Artık sadece backend'den gelen 'total_score'u gösteriyoruz */}
-            <p className="text-5xl font-bold text-yellow-400">
-              {profileDetails.total_score || 0}
-            </p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-300">Mixed Rush Highscore</p>
-            <p className="text-3xl">{profileDetails.mixed_rush_highscore || 0}</p>
-          </div>
-        </div>
-
-        {/* Sağ Taraf: Oyun Bazında Skorlar */}
-        <div className="md:col-span-2 bg-gray-900 p-6 rounded-md">
-          <h2 className="text-2xl font-bold mb-4 text-center">Scores by Game</h2>
-          <div className="space-y-4">
-            {gameScores.length > 0 ? (
-              gameScores.map(game => (
-                <div key={game.game_slug} className="flex justify-between items-center bg-gray-700 p-3 rounded">
-                  <span className="font-semibold">{getGameName(game.game_slug)}</span>
-                  <span className="text-xl font-bold text-yellow-400">{game.score}</span>
+          {/* Hero Section - Profile Header */}
+          <div className="relative mb-12">
+            <div className="bg-gradient-to-r from-cyan-900/40 to-purple-900/40 backdrop-blur-sm rounded-3xl p-8 border border-cyan-400/20 shadow-2xl">
+              <div className="flex flex-col lg:flex-row items-center gap-8">
+                
+                {/* Avatar & Main Info */}
+                <div className="flex flex-col items-center lg:items-start">
+                  <div className="relative">
+                    <img 
+                      src={avatarUrl} 
+                      alt="avatar" 
+                      className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover border-4 border-cyan-400/30 shadow-2xl"
+                    />
+                    <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-gray-900 flex items-center justify-center">
+                      <span className="text-xs">🌟</span>
+                    </div>
+                  </div>
+                  
+                  <h1 className="text-3xl lg:text-4xl font-bold mt-4 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
+                    {profileDetails.username || user.email}
+                  </h1>
+                  <p className="text-cyan-200/80 text-lg">{user.email}</p>
+                  
+                  <button 
+                    onClick={() => setIsFriendsModalOpen(true)}
+                    className="mt-4 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/20"
+                  >
+                    👥 Friends
+                  </button>
                 </div>
-              ))
+
+                {/* Stats Cards - Horizontal Layout */}
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 lg:ml-8">
+                  {/* Total Score Card */}
+                  <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 backdrop-blur-sm p-6 rounded-2xl border border-yellow-400/20 text-center transform hover:scale-105 transition-all duration-300">
+                    <div className="text-4xl mb-2">🏆</div>
+                    <h3 className="text-yellow-200 font-semibold mb-2">Total Score</h3>
+                    <p className="text-4xl font-bold text-yellow-300">
+                      {profileDetails.total_score?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+
+                  {/* Mixed Rush Card */}
+                  <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 backdrop-blur-sm p-6 rounded-2xl border border-red-400/20 text-center transform hover:scale-105 transition-all duration-300">
+                    <div className="text-4xl mb-2">⚡</div>
+                    <h3 className="text-red-200 font-semibold mb-2">Mixed Rush</h3>
+                    <p className="text-4xl font-bold text-red-300">
+                      {profileDetails.mixed_rush_highscore?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Game Scores Section */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
+              Game Performance
+            </h2>
+            
+            {gameScores.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {gameScores.map((game, index) => (
+                  <div 
+                    key={game.game_slug} 
+                    className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl border border-cyan-400/20 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="text-center">
+                      <div className="text-5xl mb-4">{getGameIcon(game.game_slug)}</div>
+                      <h3 className="text-xl font-semibold text-cyan-100 mb-2">
+                        {getGameName(game.game_slug)}
+                      </h3>
+                      <div className="text-3xl font-bold text-cyan-300 mb-2">
+                        {game.score?.toLocaleString() || '0'}
+                      </div>
+                      <div className="w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-2 rounded-full transition-all duration-1000"
+                          style={{ width: `${Math.min(100, (game.score / 1000) * 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <p className="text-center text-gray-400">No game scores recorded yet. Go play!</p>
+              <div className="text-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-sm p-12 rounded-2xl border border-gray-600/20">
+                <div className="text-6xl mb-4">🎮</div>
+                <p className="text-xl text-gray-300 mb-4">No game scores yet!</p>
+                <p className="text-gray-400">Start playing to see your progress here.</p>
+              </div>
             )}
           </div>
+
+          {/* Achievements Section */}
+          <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm p-8 rounded-3xl border border-purple-400/20 shadow-2xl">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
+              🏅 Achievements
+            </h2>
+            <AchievementsList />
+          </div>
         </div>
       </div>
 
-        
-        {/* Alt Kısım: Madalya Listesi */}
-        <div className="mt-10">
-          <AchievementsList />
-        </div>
-      </div>
-
-      {/* MODAL'I BURADA ÇAĞIRIYORUZ */}
+      {/* Friends Modal */}
       <FriendsModal 
         isOpen={isFriendsModalOpen} 
         onClose={() => setIsFriendsModalOpen(false)} 
