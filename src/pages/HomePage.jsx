@@ -29,13 +29,15 @@ const HomePage = () => {
       }
 
       try {
-  // Fetch mixed rush leaderboard
+  // Fetch mixed rush leaderboard - limit to 3
   const mixedResponse = await api.get('/api/leaderboard/mixed-rush?limit=3');
   console.debug('[HomePage] mixedResponse:', mixedResponse && mixedResponse.data ? mixedResponse.data : mixedResponse);
-  setMixedRushScores(mixedResponse.data || []);
+  // Ensure we only show top 3
+  const limitedMixedScores = (mixedResponse.data || []).slice(0, 3);
+  setMixedRushScores(limitedMixedScores);
       } catch (error) {
         console.error('Failed to fetch mixed rush scores:', error);
-        // Show placeholder data when endpoint doesn't exist
+        // Show placeholder data when endpoint doesn't exist - only 3 items
         setMixedRushScores([
           { username: 'Try Mixed Rush', score: 0 },
           { username: 'to compete for', score: 0 },
@@ -59,9 +61,9 @@ const HomePage = () => {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-x-32 max-w-7xl mx-auto">
         {/* Left side - Total Score Leaderboard */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 transform scale-75">
           <LeaderboardTable 
             title="🏆 Top Players"
             scores={totalScores}
@@ -101,7 +103,7 @@ const HomePage = () => {
         </div>
 
         {/* Right side - Mixed Rush Leaderboard */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 transform scale-75">
           <LeaderboardTable 
             title="⚡ Mixed Rush Champions"
             scores={mixedRushScores}
