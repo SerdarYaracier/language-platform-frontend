@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import { LanguageContext } from '../../context/LanguageContext'; // Dosya yolu güncellendi
@@ -17,7 +17,13 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
   const [currentGameId, setCurrentGameId] = useState(null);
   const nextTimeoutRef = useRef(null);
 
-  const GAME_KEY = 'seenIds:fill-in-the-blank';
+  const GAME_KEY_BASE = 'seenIds:fill-in-the-blank';
+
+  const getKey = () => {
+    // Per-category+level key so different levels/categories don't share seen ids
+    return `${GAME_KEY_BASE}:${categorySlug || 'global'}:${level || 1}`;
+  };
+
   const getGameId = (d) => d?.id || d?.game_id || d?._id || null;
   const getSeenIds = (key) => {
     try {
@@ -35,6 +41,9 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
       localStorage.setItem(key, JSON.stringify(arr));
     }
   };
+  const setSeenIdsDirect = (key, arr) => {
+    localStorage.setItem(key, JSON.stringify(arr || []));
+  };
 
   const fetchGame = async () => {
     // clear any pending auto-next timeout when fetching a new question
@@ -49,54 +58,90 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
     setFeedback('');
     setCurrentGameId(null);
 
-  if (initialData) {
+    // If category required and not provided (and not MixedRush), redirect
+    if (!categorySlug && !isMixedRush) {
+      navigate('/categories/fill-in-the-blank');
+      return;
+    }
+
+    // Build per-level key and seen ids
+    const key = getKey();
+    const seenIdsArr = getSeenIds(key);
+
+    // If we've already seen 5 questions for this level, mark complete
+    if (seenIdsArr.length >= 5) {
+      setFeedback("Congratulations! You've completed all questions in this level.");
+      setIsLoading(false);
+      return;
+    }
+
+    // If initialData is provided by parent (e.g. MixedRush) use it
+    if (initialData) {
       const id = getGameId(initialData);
-      if (isSeen(GAME_KEY, id)) {
+      if (isSeen(key, id)) {
         setFeedback('No new questions available.');
         setIsLoading(false);
         return;
       }
       setGameData(initialData);
       setCurrentGameId(id);
+      // Mark as seen immediately to avoid repeats
+      addSeen(key, id);
       setIsLoading(false);
       return;
     }
 
-    let attempts = 5;
-    while (attempts > 0) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        // include category and level params when available; MixedRush will call without category
-        const base = `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}`;
-        const url = categorySlug
-          ? `${base}&category=${encodeURIComponent(categorySlug)}${level ? `&level=${encodeURIComponent(level)}` : ''}`
-          : `${base}${level ? `&level=${encodeURIComponent(level)}` : ''}`;
-        // If we're running inside MixedRush, the parent provides initialData; don't fetch here
-        if (isMixedRush) {
-          setIsLoading(false);
-          return;
-        }
+    // Send seen_ids to backend so server excludes them
+    const seenParam = seenIdsArr.length ? `&seen_ids=${seenIdsArr.join(',')}` : '';
+    const base = `${API_URL}/api/games/fill-in-the-blank?lang=${encodeURIComponent(targetLang)}`;
+    const url = categorySlug
+      ? `${base}&category=${encodeURIComponent(categorySlug)}${level ? `&level=${encodeURIComponent(level)}` : ''}${seenParam}`
+      : `${base}${level ? `&level=${encodeURIComponent(level)}` : ''}${seenParam}`;
 
-        const response = await api.get(url);
-        const id = getGameId(response.data);
-        if (id && isSeen(GAME_KEY, id)) {
-          attempts -= 1;
-          continue;
-        }
-        setGameData(response.data);
-        setCurrentGameId(id);
-        setIsLoading(false);
-        return;
-      } catch (error) {
-        console.error("Failed to fetch game data!", error);
-        setFeedback("Could not load the game. Please try again.");
+    try {
+      const response = await api.get(url);
+      const data = response.data;
+
+      // If backend returns empty object => no more questions
+      if (!data || Object.keys(data).length === 0) {
+        setFeedback("Congratulations! You've completed all questions in this level.");
         setIsLoading(false);
         return;
       }
-    }
 
-    setFeedback('No new questions available.');
-    setIsLoading(false);
+      const id = getGameId(data);
+      // If backend somehow returned a seen id, skip it (defensive)
+      if (id && isSeen(key, id)) {
+        // Try again once (server should have excluded, but fallback)
+        // add to local seen to avoid infinite loop then mark complete if needed
+        addSeen(key, id);
+        const newSeen = getSeenIds(key);
+        if (newSeen.length >= 5) {
+          setFeedback("Congratulations! You've completed all questions in this level.");
+          setIsLoading(false);
+          return;
+        }
+        // try fetch again
+        setIsLoading(false);
+        return fetchGame();
+      }
+
+      // Accept and mark seen immediately so it's not returned again
+      setGameData(data);
+      setCurrentGameId(id);
+      if (id) addSeen(key, id);
+
+      // If we've now reached 5 seen questions, and user hasn't answered them,
+      // we still allow answering; but future fetches will show completion.
+
+      setIsLoading(false);
+      return;
+    } catch (error) {
+      console.error("Failed to fetch game data!", error);
+      setFeedback("Could not load the game. Please try again.");
+      setIsLoading(false);
+      return;
+    }
   };
 
   // cleanup timeout on unmount
@@ -115,7 +160,14 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
       return;
     }
 
+    // reset transient state when level/category changes
+    setFeedback('');
+    setSelectedOption(null);
+    setGameData(null);
+    setIsLoading(true);
+
     fetchGame();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetLang, categorySlug, level, isMixedRush]);
 
   const submitScore = async () => {
@@ -127,7 +179,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
         level: level,
       });
       console.log('Score submitted for fill-in-the-blank');
-  if (typeof refreshProfile === 'function') refreshProfile();
+      if (typeof refreshProfile === 'function') refreshProfile();
     } catch (error) {
       console.error('Failed to submit score', error);
     }
@@ -139,7 +191,10 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
     setSelectedOption(option);
     if (option === gameData.answer) {
       setFeedback('Correct!');
-      if (currentGameId) addSeen(GAME_KEY, currentGameId);
+      // currentGameId already marked as seen during fetch; ensure persisted
+      const key = getKey();
+      if (currentGameId) addSeen(key, currentGameId);
+
       if (typeof onCorrectAnswer === 'function') {
         setTimeout(onCorrectAnswer, 1000);
       } else {
@@ -161,6 +216,54 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
     if (option === selectedOption && option !== gameData.answer) return 'bg-red-600';
     return 'bg-gray-700 opacity-50';
   };
+
+  // show completion when seen 5 items
+  const keyNow = getKey();
+  const seenCountNow = getSeenIds(keyNow).length;
+  if (seenCountNow >= 5 && !gameData) {
+    return (
+      <div className="bg-gray-800 p-8 rounded-lg w-full max-w-2xl mx-auto text-center">
+        <h2 className="text-2xl text-green-400 font-bold mb-6">Level Complete</h2>
+        <p className="mb-6">You've completed all questions in this level.</p>
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={() => navigate(`/levels/fill-in-the-blank/${categorySlug}`)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
+          >
+            Back to Levels
+          </button>
+
+          {/* Yeni: Kullanıcının aynı levele tekrar girip testi yeniden çözebilmesi için Retry butonu */}
+          <button
+            onClick={() => {
+              // temizle ve tekrar başlat
+              setSeenIdsDirect(keyNow, []);
+              setFeedback('');
+              setIsLoading(true);
+              fetchGame();
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded"
+          >
+            Retry Level
+          </button>
+
+          {level < 5 && (
+            <button
+              onClick={() => {
+                // reset seen ids for next level navigation
+                const nextKey = `${GAME_KEY_BASE}:${categorySlug}:${parseInt(level) + 1}`;
+                setSeenIdsDirect(nextKey, []);
+                navigate(`/game/fill-in-the-blank/${categorySlug}/${parseInt(level) + 1}`);
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
+            >
+              Next Level
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return <div className="text-center text-xl">Loading Game...</div>;

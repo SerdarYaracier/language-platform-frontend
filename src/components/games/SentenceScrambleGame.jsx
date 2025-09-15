@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useContext, memo } from 'react';
+import React, { useState, useEffect, useContext, memo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import {
   DndContext,
@@ -90,6 +91,7 @@ const DroppableArea = ({ id, words, title }) => {
 
 // 🟢 Ana oyun componenti
 const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, isMixedRush }) => {
+  const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
   const [containers, setContainers] = useState({
@@ -100,27 +102,14 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
   const [correctSentence, setCorrectSentence] = useState('');
   const [feedback, setFeedback] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [currentGameId, setCurrentGameId] = useState(null);
+  const [seenQuestionIds, setSeenQuestionIds] = useState([]);
+  const seenQuestionIdsRef = useRef([]);
+  const nextTimeoutRef = useRef(null);
 
-  // localStorage helpers to avoid repeating questions a user already solved
-  const GAME_KEY = 'seenIds:sentence-scramble';
-  const getGameId = (d) => d?.id || d?.game_id || d?._id || null;
-  const getSeenIds = (key) => {
-    try {
-      return JSON.parse(localStorage.getItem(key) || '[]');
-    } catch (e) {
-      return [];
-    }
-  };
-  const isSeen = (key, id) => !!id && getSeenIds(key).includes(id);
-  const addSeen = (key, id) => {
-    if (!id) return;
-    const arr = getSeenIds(key);
-    if (!arr.includes(id)) {
-      arr.push(id);
-      localStorage.setItem(key, JSON.stringify(arr));
-    }
-  };
+  // seenQuestionIds değiştiğinde ref'i güncelle
+  useEffect(() => {
+    seenQuestionIdsRef.current = seenQuestionIds;
+  }, [seenQuestionIds]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -129,18 +118,165 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
   );
 
   const fetchGame = async () => {
-    setIsLoading(true);
-    setFeedback('');
-    setCurrentGameId(null);
+    // clear any pending auto-next timeout when fetching a new question
+    if (nextTimeoutRef.current) {
+      clearTimeout(nextTimeoutRef.current);
+      nextTimeoutRef.current = null;
+    }
 
-  if (initialData) {
-      const id = getGameId(initialData);
-      if (isSeen(GAME_KEY, id)) {
-        setFeedback('No new questions available.');
-        setGameData(null);
+    // MixedRush bu mantığı kullanmaz, çünkü sorular dışarıdan gelir.
+    if (isMixedRush) {
+      if(initialData) {
+        const wordsWithIds = initialData.shuffled_words.map((word, index) => ({
+          id: `word-${index}-${Date.now()}`,
+          content: word,
+          inSentence: false
+        }));
+        setContainers({ wordBank: wordsWithIds, userSentence: [] });
+        setCorrectSentence(initialData.correct_sentence);
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // Normal modda, kategori ve seviye bilgisi zorunludur.
+    if (!categorySlug || !level) {
+      navigate(`/categories/sentence-scramble`);
+      return;
+    }
+
+    setIsLoading(true);
+    setContainers({ wordBank: [], userSentence: [] });
+    setFeedback('');
+
+    // Current seen IDs'i ref'ten al (güncel değer)
+    const currentSeenIds = seenQuestionIdsRef.current;
+    const seenIdsParam = currentSeenIds.join(',');
+    const lang = targetLang || 'en';
+    
+    console.log(`[SentenceScramble] Fetching game - seen IDs: [${seenIdsParam}], total seen: ${currentSeenIds.length}`);
+    
+    const url = `/api/games/sentence-scramble?lang=${lang}&category=${categorySlug}&level=${level}&seen_ids=${seenIdsParam}`;
+    
+    try {
+      const response = await api.get(url);
+
+      console.log(`[SentenceScramble] Backend response:`, response.data);
+
+      // Backend boş nesne döndürürse tüm sorular bitmiş
+      if (!response.data || Object.keys(response.data).length === 0) {
+        console.log(`[SentenceScramble] No more questions available - level complete`);
+        setFeedback("Congratulations! You've completed all questions in this level.");
         setIsLoading(false);
         return;
       }
+      
+      const wordsWithIds = response.data.shuffled_words.map((word, index) => ({
+        id: `word-${index}-${Date.now()}`,
+        content: word,
+        inSentence: false
+      }));
+      setContainers({ wordBank: wordsWithIds, userSentence: [] });
+      setCorrectSentence(response.data.correct_sentence);
+      
+      // Gelen yeni sorunun ID'sini görülenler listesine ekle
+      if (response.data.id) {
+        console.log(`[SentenceScramble] Adding question ID ${response.data.id} to seen list`);
+        setSeenQuestionIds(prevIds => {
+          const newIds = [...prevIds, response.data.id];
+          console.log(`[SentenceScramble] Updated seen IDs: [${newIds.join(',')}]`);
+          return newIds;
+        });
+      }
+
+    } catch (err) {
+      console.error(`[SentenceScramble] Error fetching game:`, err);
+      let msg = 'Could not load the game.';
+      if (err.response?.status === 404) {
+        msg = 'Game data not found.';
+      } else if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      }
+      setFeedback(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // İlk yükleme için özel fonksiyon
+  const loadInitialGame = async () => {
+    if (isMixedRush) {
+      if(initialData) {
+        const wordsWithIds = initialData.shuffled_words.map((word, index) => ({
+          id: `word-${index}-${Date.now()}`,
+          content: word,
+          inSentence: false
+        }));
+        setContainers({ wordBank: wordsWithIds, userSentence: [] });
+        setCorrectSentence(initialData.correct_sentence);
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    if (!categorySlug || !level) {
+      navigate(`/categories/sentence-scramble`);
+      return;
+    }
+
+    setIsLoading(true);
+    const lang = targetLang || 'en';
+    const url = `/api/games/sentence-scramble?lang=${lang}&category=${categorySlug}&level=${level}&seen_ids=`;
+    
+    try {
+      const response = await api.get(url);
+      console.log(`[SentenceScramble] Initial game loaded:`, response.data);
+
+      if (!response.data || Object.keys(response.data).length === 0) {
+        setFeedback("No questions available for this level.");
+        setIsLoading(false);
+        return;
+      }
+      
+      const wordsWithIds = response.data.shuffled_words.map((word, index) => ({
+        id: `word-${index}-${Date.now()}`,
+        content: word,
+        inSentence: false
+      }));
+      setContainers({ wordBank: wordsWithIds, userSentence: [] });
+      setCorrectSentence(response.data.correct_sentence);
+      
+      // İlk sorunun ID'sini kaydet
+      if (response.data.id) {
+        console.log(`[SentenceScramble] Initial question ID: ${response.data.id}`);
+        setSeenQuestionIds([response.data.id]);
+      }
+
+    } catch (err) {
+      console.error(`[SentenceScramble] Error loading initial game:`, err);
+      setFeedback('Could not load the game.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (nextTimeoutRef.current) {
+        clearTimeout(nextTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // reset transient state when level/category changes
+    setFeedback('');
+    setContainers({ wordBank: [], userSentence: [] });
+    setIsLoading(true);
+    setSeenQuestionIds([]);
+
+    if (initialData) {
       const wordsWithIds = initialData.shuffled_words.map((word, index) => ({
         id: `word-${index}-${Date.now()}`,
         content: word,
@@ -148,58 +284,16 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
       }));
       setContainers({ wordBank: wordsWithIds, userSentence: [] });
       setCorrectSentence(initialData.correct_sentence);
-      setCurrentGameId(id);
       setIsLoading(false);
-      return;
-    }
-
-    // Try to fetch up to 5 times to find an unseen question
-    let attempts = 5;
-    // If we're running inside MixedRush, the parent provides initialData; don't fetch here
-    if (isMixedRush) {
-      setIsLoading(false);
-      return;
-    }
-
-    while (attempts > 0) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const base = `${API_URL}/api/games/sentence-scramble?lang=${targetLang}&category=${encodeURIComponent(categorySlug || '')}`;
-        const url = level ? `${base}&level=${encodeURIComponent(level)}` : base;
-        const response = await api.get(url);
-        const id = getGameId(response.data);
-        if (id && isSeen(GAME_KEY, id)) {
-          attempts -= 1;
-          continue; // try again
-        }
-
-        const wordsWithIds = response.data.shuffled_words.map((word, index) => ({
-          id: `word-${index}-${Date.now()}`,
-          content: word,
-          inSentence: false
-        }));
-        setContainers({ wordBank: wordsWithIds, userSentence: [] });
-        setCorrectSentence(response.data.correct_sentence);
-        setCurrentGameId(id);
-        setIsLoading(false);
-        return;
-      } catch (error) {
-        console.error('Failed to fetch game data!', error);
-        setFeedback('Could not load the game.');
-        setIsLoading(false);
-        return;
+      // İlk veri için de ID'yi kaydet
+      if (initialData.id) {
+        console.log(`[SentenceScramble] Initial data ID: ${initialData.id}`);
+        setSeenQuestionIds([initialData.id]);
       }
+    } else {
+      loadInitialGame(); // İlk yükleme için özel fonksiyon kullan
     }
-
-    // Out of attempts
-    setFeedback('No new questions available.');
-    setGameData(null);
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchGame();
-  }, [targetLang, categorySlug, level]);
+  }, [initialData, targetLang, categorySlug, level, isMixedRush]);
 
   const handleDragStart = event => {
     const { active } = event;
@@ -260,7 +354,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
         level: level,
       });
       console.log('Score submitted for sentence-scramble');
-  if (typeof refreshProfile === 'function') refreshProfile();
+      if (typeof refreshProfile === 'function') refreshProfile();
     } catch (error) {
       console.error('Failed to submit score', error);
     }
@@ -270,19 +364,67 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
     const userSentence = containers.userSentence.map(w => w.content).join(' ');
     if (userSentence === correctSentence) {
       setFeedback('🎉 Congratulations! Correct sentence!');
-      if (currentGameId) addSeen(GAME_KEY, currentGameId);
       if (typeof onCorrectAnswer === 'function') {
-        setTimeout(onCorrectAnswer, 1000);
+        setTimeout(onCorrectAnswer, 1500);
       } else {
         submitScore();
+        setTimeout(() => {
+          fetchGame();
+        }, 1500);
       }
     } else {
       setFeedback('❌ Try again!');
     }
   };
 
+  const handleNextQuestion = () => {
+    fetchGame();
+  };
+
   if (isLoading) {
     return <div className="text-center text-xl">Loading Game...</div>;
+  }
+
+  // Level/kategori bittiğinde gösterilecek özel durum
+  if (!containers.wordBank.length && !containers.userSentence.length && feedback.includes("Congratulations")) {
+    return (
+        <div className="bg-gray-800 p-8 rounded-lg w-full max-w-md mx-auto text-center">
+            <h2 className="text-2xl text-green-400 font-bold mb-4">Level Complete!</h2>
+            <p className="text-white mb-6">{feedback}</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                  onClick={() => navigate(`/levels/sentence-scramble/${categorySlug}`)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
+              >
+                  Back to Levels
+              </button>
+              {/* Retry butonu */}
+              <button
+                onClick={() => {
+                  setSeenQuestionIds([]);
+                  setFeedback('');
+                  setIsLoading(true);
+                  loadInitialGame();
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded"
+              >
+                Retry Level
+              </button>
+              {level < 5 && (
+                <button
+                    onClick={() => navigate(`/game/sentence-scramble/${categorySlug}/${parseInt(level) + 1}`)}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
+                >
+                    Next Level
+                </button>
+              )}
+            </div>
+        </div>
+    );
+  }
+
+  if (!containers.wordBank.length && !containers.userSentence.length) {
+    return <div className="text-center text-xl text-red-400">{feedback || 'No game data.'}</div>;
   }
 
   return (
@@ -290,7 +432,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
       sensors={sensors}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      collisionDetection={pointerWithin} // ✅ boş konteynerde de çalışır
+      collisionDetection={pointerWithin}
     >
       <div className="bg-gray-800 p-6 rounded-lg w-full max-w-3xl mx-auto">
         <h2 className="text-2xl text-cyan-400 font-bold mb-4 text-center">
@@ -299,6 +441,11 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
         <p className="text-center text-gray-400 mb-6">
           Drag the words to form a correct sentence.
         </p>
+
+        {/* Debug bilgisi */}
+        <div className="text-xs text-gray-500 mb-4 text-center">
+          Questions seen: {seenQuestionIds.length}/5
+        </div>
 
         <DroppableArea
           id="userSentence"
@@ -319,7 +466,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
             Check Answer
           </button>
           <button
-            onClick={fetchGame}
+            onClick={handleNextQuestion}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
           >
             New Sentence

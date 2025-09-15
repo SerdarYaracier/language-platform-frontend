@@ -61,7 +61,7 @@ const HomePage = () => {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-x-32 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-x-24 max-w-7xl mx-auto">
         {/* Left side - Total Score Leaderboard */}
         <div className="lg:col-span-1 transform scale-75">
           <LeaderboardTable 
