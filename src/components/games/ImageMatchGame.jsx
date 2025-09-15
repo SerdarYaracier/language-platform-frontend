@@ -4,7 +4,7 @@ import api from '../../api';
 import { LanguageContext } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
-const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isMixedRush }) => {
+const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -177,9 +177,9 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
     setSelectedOption(option);
 
     if (option === gameData?.answer) {
-      setFeedback('Correct!');
+      setFeedback('🎉 Correct!');
       if (typeof onCorrectAnswer === 'function') {
-        setTimeout(onCorrectAnswer, 1500);
+        setTimeout(onCorrectAnswer, 300);
       } else {
         submitScore();
         setTimeout(() => {
@@ -187,8 +187,13 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
         }, 1500);
       }
     } else {
-      setFeedback(`Wrong! Correct answer: ${gameData.answer}`);
-      // Yanlış cevap durumunda otomatik geçiş yok
+      setFeedback(`❌ Wrong! Correct answer: ${gameData.answer}`);
+      
+      // MixedRush modunda yanlış cevap için özel işlem
+      if (isMixedRush && typeof onWrongAnswer === 'function') {
+        setTimeout(onWrongAnswer, 300);
+      }
+      // Normal modda otomatik geçiş yok
     }
   };
 
@@ -197,61 +202,109 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
   };
 
   const getButtonClass = (option) => {
-    if (!feedback) return 'bg-gray-600 hover:bg-gray-500';
-    if (option === gameData?.answer) return 'bg-green-600';
-    if (option === selectedOption && option !== gameData?.answer) return 'bg-red-600';
-    return 'bg-gray-700 opacity-50';
+    const baseClasses = 'w-full text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform border backdrop-blur-sm text-lg';
+    
+    if (!feedback) {
+      return `${baseClasses} bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 border-gray-500/30 hover:scale-[1.02] shadow-md hover:shadow-lg`;
+    }
+    
+    if (option === gameData?.answer) {
+      return `${baseClasses} bg-gradient-to-r from-green-600 to-green-700 border-green-400/30 shadow-lg scale-[1.02]`;
+    }
+    
+    if (option === selectedOption && option !== gameData?.answer) {
+      return `${baseClasses} bg-gradient-to-r from-red-600 to-red-700 border-red-400/30 shadow-lg scale-[1.02]`;
+    }
+    
+    return `${baseClasses} bg-gradient-to-r from-gray-700 to-gray-800 border-gray-600/30 opacity-60`;
   };
 
   if (isLoading) {
-    return <div className="text-center text-xl">Loading Game...</div>;
+    return (
+      <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-6 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-pulse">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+        <div className="text-xl text-cyan-200">Loading Game...</div>
+      </div>
+    );
   }
 
   // Level/kategori bittiğinde gösterilecek özel durum
   if (!gameData && feedback.includes("Congratulations")) {
     return (
-        <div className="bg-gray-800 p-8 rounded-lg w-full max-w-md mx-auto text-center">
-            <h2 className="text-2xl text-green-400 font-bold mb-4">Level Complete!</h2>
-            <p className="text-white mb-6">{feedback}</p>
-            <div className="flex gap-4 justify-center">
-              <button
-                  onClick={() => navigate(`/levels/image-match/${categorySlug}`)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-              >
-                  Back to Levels
-              </button>
-              {level < 5 && (
-                <button
-                    onClick={() => navigate(`/game/image-match/${categorySlug}/${parseInt(level) + 1}`)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
-                >
-                    Next Level
-                </button>
-              )}
-            </div>
+      <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500">
+        <div className="text-4xl mb-4 animate-bounce">🏆</div>
+        <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete!</h2>
+        <p className="text-cyan-100 mb-6">{feedback}</p>
+        <div className="flex gap-3 justify-center flex-wrap">
+          <button
+            onClick={() => navigate(`/levels/image-match/${categorySlug}`)}
+            className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
+          >
+            Back to Levels
+          </button>
+          <button
+            onClick={() => {
+              setSeenQuestionIds([]);
+              setFeedback('');
+              setIsLoading(true);
+              loadInitialGame();
+            }}
+            className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
+          >
+            Retry Level
+          </button>
+          {level < 5 && (
+            <button
+              onClick={() => navigate(`/game/image-match/${categorySlug}/${parseInt(level) + 1}`)}
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-green-400/30"
+            >
+              Next Level
+            </button>
+          )}
         </div>
+      </div>
     );
   }
 
   if (!gameData) {
-    return <div className="text-center text-xl text-red-400">{feedback || 'No game data.'}</div>;
+    return (
+      <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-md mx-auto text-center border border-red-400/30">
+        <div className="text-xl text-red-300">{feedback || 'No game data.'}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md mx-auto text-center">
-      <h2 className="text-2xl text-purple-400 font-bold mb-4">Match the Image</h2>
-      
-      {/* Debug bilgisi */}
-      <div className="text-xs text-gray-500 mb-4">
-        Questions seen: {seenQuestionIds.length}/5 | Current ID: {gameData.id}
+    <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-6 rounded-2xl w-full max-w-xl mx-auto border border-cyan-400/30 shadow-2xl animate-in fade-in-50 duration-700">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl text-cyan-300 font-bold mb-1 bg-gradient-to-r from-cyan-300 to-cyan-100 bg-clip-text text-transparent">
+          Match the Image
+        </h2>
+        <p className="text-cyan-200/80 mb-3 text-base">
+          Select the word that matches the image.
+        </p>
+        
+        {/* Progress indicator */}
+        <div className="bg-cyan-900/30 rounded-full p-2 mb-4 inline-block border border-cyan-400/20">
+          <div className="text-sm text-cyan-200 font-medium">
+            Question {seenQuestionIds.length} of 5
+          </div>
+          <div className="w-28 bg-cyan-900/50 rounded-full h-2 mt-2">
+            <div 
+              className="bg-gradient-to-r from-cyan-400 to-cyan-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${(seenQuestionIds.length / 5) * 100}%` }}
+            />
+          </div>
+        </div>
       </div>
       
-      <div className="mb-6">
-        <div className="relative w-full h-64 overflow-hidden rounded-lg bg-gray-700 shadow-lg">
+      {/* Image container */}
+      <div className="mb-6 animate-in fade-in-50 slide-in-from-top-2 duration-500">
+        <div className="relative w-full h-64 overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-800/30 to-cyan-900/30 shadow-lg border border-cyan-400/20 backdrop-blur-sm">
           <img
             src={gameData.image_url}
             alt="Match this image"
-            className="absolute inset-0 w-full h-full object-contain object-center"
+            className="absolute inset-0 w-full h-full object-contain object-center p-4"
             onError={(e) => {
               e.target.style.display = 'none';
               const fallback = e.target.nextSibling;
@@ -259,36 +312,51 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, categorySlug, level, isM
             }}
           />
           <div className="hidden w-full h-full flex-col items-center justify-center">
-            <p className="text-gray-400">Image not available</p>
+            <div className="text-4xl mb-4">📷</div>
+            <p className="text-cyan-300 text-lg font-medium">Image not available</p>
           </div>
         </div>
       </div>
       
-      <div className="grid grid-cols-2 gap-4">
+      {/* Options grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         {gameData.options?.map((option, index) => (
-          <button
+          <div
             key={index}
-            onClick={() => handleOptionClick(option)}
-            disabled={!!feedback}
-            className={`w-full text-white font-bold py-3 px-4 rounded transition duration-300 ${getButtonClass(option)}`}
+            className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300"
+            style={{ animationDelay: `${index * 80}ms` }}
           >
-            {option}
-          </button>
+            <button
+              onClick={() => handleOptionClick(option)}
+              disabled={!!feedback}
+              className={getButtonClass(option)}
+            >
+              {option}
+            </button>
+          </div>
         ))}
       </div>
       
+      {/* Feedback section */}
       {feedback && (
-        <div className="mt-6">
-          <p className={`text-2xl font-bold ${feedback === 'Correct!' ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="text-center animate-in slide-in-from-bottom-3 duration-500">
+          <div className={`inline-block p-3 rounded-lg backdrop-blur-sm border text-lg font-bold mb-4 ${
+            feedback.includes('Correct')
+              ? 'text-green-300 bg-green-900/30 border-green-400/30'
+              : 'text-red-300 bg-red-900/30 border-red-400/30'
+          }`}>
             {feedback}
-          </p>
-          {feedback !== 'Correct!' && (
-            <button
-              onClick={handleNextQuestion}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-            >
-              Next Question
-            </button>
+          </div>
+          
+          {feedback !== '🎉 Correct!' && !isMixedRush && (
+            <div>
+              <button
+                onClick={handleNextQuestion}
+                className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30 backdrop-blur-sm"
+              >
+                Next Question
+              </button>
+            </div>
           )}
         </div>
       )}

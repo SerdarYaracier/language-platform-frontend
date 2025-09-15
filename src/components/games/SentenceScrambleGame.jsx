@@ -39,13 +39,15 @@ const Word = memo(({ word, containerId }) => {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    boxShadow: isDragging ? '0px 5px 15px rgba(0,0,0,0.2)' : 'none',
+    opacity: isDragging ? 0.7 : 1,
+    boxShadow: isDragging ? '0px 8px 20px rgba(34, 197, 94, 0.3)' : 'none',
     zIndex: isDragging ? 10 : 'auto'
   };
 
-  const baseClasses = 'p-2 px-4 rounded text-lg cursor-grab select-none';
-  const colorClasses = word.inSentence ? 'bg-cyan-600' : 'bg-gray-500';
+  const baseClasses = 'p-3 px-5 rounded-lg text-lg cursor-grab select-none font-medium transition-all duration-200 transform hover:scale-105 border';
+  const colorClasses = word.inSentence 
+    ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white border-cyan-400/30 shadow-lg' 
+    : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-100 border-gray-500/30 hover:from-gray-500 hover:to-gray-600 shadow-md';
 
   return (
     <div
@@ -62,35 +64,47 @@ const Word = memo(({ word, containerId }) => {
 
 // 🟢 Droppable container componenti
 const DroppableArea = ({ id, words, title }) => {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id,
     data: { containerId: id }
   });
 
-  const baseClasses =
-    'min-h-[80px] rounded p-3 mb-4 flex flex-wrap items-start gap-3 transition-colors';
-  const colorClasses = id === 'userSentence' ? 'bg-gray-700' : 'bg-gray-900';
+  const baseClasses = 'min-h-[100px] rounded-xl p-4 mb-6 flex flex-wrap items-start gap-3 transition-all duration-300 border-2 backdrop-blur-sm';
+  const colorClasses = id === 'userSentence' 
+    ? `bg-gradient-to-br from-cyan-800/30 to-cyan-900/30 border-cyan-400/40 ${isOver ? 'border-cyan-300 bg-cyan-800/50' : ''}` 
+    : `bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-600/40 ${isOver ? 'border-gray-400 bg-gray-700/50' : ''}`;
 
   return (
-    <div>
-      <h3 className="text-sm text-gray-400 mb-2">{title}</h3>
+    <div className="animate-in fade-in-50 duration-500">
+      <h3 className="text-sm text-cyan-200 mb-3 font-semibold uppercase tracking-wider">{title}</h3>
       <div ref={setNodeRef} className={`${baseClasses} ${colorClasses}`}>
         <SortableContext
           id={id}
           items={words.map(w => w.id)}
           strategy={rectSortingStrategy}
         >
-          {words.map(word => (
-            <Word key={word.id} word={word} containerId={id} />
+          {words.map((word, index) => (
+            <div 
+              key={word.id} 
+              className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <Word word={word} containerId={id} />
+            </div>
           ))}
         </SortableContext>
+        {words.length === 0 && (
+          <div className="text-gray-400 text-center w-full py-4 italic">
+            {id === 'userSentence' ? 'Drop words here to build your sentence' : 'All words used'}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // 🟢 Ana oyun componenti
-const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, isMixedRush }) => {
+const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, onWrongAnswer, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -365,7 +379,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
     if (userSentence === correctSentence) {
       setFeedback('🎉 Congratulations! Correct sentence!');
       if (typeof onCorrectAnswer === 'function') {
-        setTimeout(onCorrectAnswer, 1500);
+        setTimeout(onCorrectAnswer, 300);
       } else {
         submitScore();
         setTimeout(() => {
@@ -374,6 +388,12 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
       }
     } else {
       setFeedback('❌ Try again!');
+      
+      // MixedRush modunda yanlış cevap için özel işlem
+      if (isMixedRush && typeof onWrongAnswer === 'function') {
+        setTimeout(onWrongAnswer, 300);
+      }
+      // Normal modda kullanıcı tekrar deneyebilir
     }
   };
 
@@ -382,49 +402,58 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
   };
 
   if (isLoading) {
-    return <div className="text-center text-xl">Loading Game...</div>;
+    return (
+      <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-8 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-pulse">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+        <div className="text-xl text-cyan-200">Loading Game...</div>
+      </div>
+    );
   }
 
   // Level/kategori bittiğinde gösterilecek özel durum
   if (!containers.wordBank.length && !containers.userSentence.length && feedback.includes("Congratulations")) {
     return (
-        <div className="bg-gray-800 p-8 rounded-lg w-full max-w-md mx-auto text-center">
-            <h2 className="text-2xl text-green-400 font-bold mb-4">Level Complete!</h2>
-            <p className="text-white mb-6">{feedback}</p>
-            <div className="flex gap-4 justify-center">
-              <button
-                  onClick={() => navigate(`/levels/sentence-scramble/${categorySlug}`)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-              >
-                  Back to Levels
-              </button>
-              {/* Retry butonu */}
-              <button
-                onClick={() => {
-                  setSeenQuestionIds([]);
-                  setFeedback('');
-                  setIsLoading(true);
-                  loadInitialGame();
-                }}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded"
-              >
-                Retry Level
-              </button>
-              {level < 5 && (
-                <button
-                    onClick={() => navigate(`/game/sentence-scramble/${categorySlug}/${parseInt(level) + 1}`)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
-                >
-                    Next Level
-                </button>
-              )}
-            </div>
+      <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-8 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500">
+        <div className="text-4xl mb-4 animate-bounce">🏆</div>
+        <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete!</h2>
+        <p className="text-cyan-100 mb-6">{feedback}</p>
+        <div className="flex gap-4 justify-center flex-wrap">
+          <button
+            onClick={() => navigate(`/levels/sentence-scramble/${categorySlug}`)}
+            className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
+          >
+            Back to Levels
+          </button>
+          <button
+            onClick={() => {
+              setSeenQuestionIds([]);
+              setFeedback('');
+              setIsLoading(true);
+              loadInitialGame();
+            }}
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-purple-400/30"
+          >
+            Retry Level
+          </button>
+          {level < 5 && (
+            <button
+              onClick={() => navigate(`/game/sentence-scramble/${categorySlug}/${parseInt(level) + 1}`)}
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-green-400/30"
+            >
+              Next Level
+            </button>
+          )}
         </div>
+      </div>
     );
   }
 
   if (!containers.wordBank.length && !containers.userSentence.length) {
-    return <div className="text-center text-xl text-red-400">{feedback || 'No game data.'}</div>;
+    return (
+      <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-md mx-auto text-center border border-red-400/30">
+        <div className="text-xl text-red-300">{feedback || 'No game data.'}</div>
+      </div>
+    );
   }
 
   return (
@@ -434,17 +463,27 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
       onDragEnd={handleDragEnd}
       collisionDetection={pointerWithin}
     >
-      <div className="bg-gray-800 p-6 rounded-lg w-full max-w-3xl mx-auto">
-        <h2 className="text-2xl text-cyan-400 font-bold mb-4 text-center">
-          Build the Sentence
-        </h2>
-        <p className="text-center text-gray-400 mb-6">
-          Drag the words to form a correct sentence.
-        </p>
-
-        {/* Debug bilgisi */}
-        <div className="text-xs text-gray-500 mb-4 text-center">
-          Questions seen: {seenQuestionIds.length}/5
+      <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-8 rounded-2xl w-full max-w-4xl mx-auto border border-cyan-400/30 shadow-2xl animate-in fade-in-50 duration-700">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl text-cyan-300 font-bold mb-2 bg-gradient-to-r from-cyan-300 to-cyan-100 bg-clip-text text-transparent">
+            Build the Sentence
+          </h2>
+          <p className="text-cyan-200/80 mb-4 text-lg">
+            Drag the words to form a correct sentence.
+          </p>
+          
+          {/* Progress indicator */}
+          <div className="bg-cyan-900/30 rounded-full p-3 mb-6 inline-block border border-cyan-400/20">
+            <div className="text-sm text-cyan-200 font-medium">
+              Question {seenQuestionIds.length} of 5
+            </div>
+            <div className="w-32 bg-cyan-900/50 rounded-full h-2 mt-2">
+              <div 
+                className="bg-gradient-to-r from-cyan-400 to-cyan-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${(seenQuestionIds.length / 5) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
         <DroppableArea
@@ -458,40 +497,36 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
           words={containers.wordBank}
         />
 
-        <div className="flex justify-center items-center gap-4 mt-4">
+        <div className="flex justify-center items-center gap-4 mt-8">
           <button
             onClick={checkAnswer}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
+            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-4 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-green-400/30 backdrop-blur-sm text-lg"
           >
             Check Answer
-          </button>
-          <button
-            onClick={handleNextQuestion}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-          >
-            New Sentence
           </button>
         </div>
 
         {feedback && (
-          <p
-            className={`mt-4 text-center text-xl font-bold ${
+          <div className={`mt-6 text-center animate-in slide-in-from-bottom-3 duration-500`}>
+            <div className={`inline-block p-4 rounded-lg backdrop-blur-sm border text-xl font-bold ${
               feedback.includes('Congratulations')
-                ? 'text-green-400'
-                : 'text-red-400'
-            }`}
-          >
-            {feedback}
-          </p>
+                ? 'text-green-300 bg-green-900/30 border-green-400/30'
+                : 'text-red-300 bg-red-900/30 border-red-400/30'
+            }`}>
+              {feedback}
+            </div>
+          </div>
         )}
       </div>
 
       <DragOverlay>
         {activeWord ? (
-          <Word
-            word={activeWord}
-            containerId={activeWord.inSentence ? 'userSentence' : 'wordBank'}
-          />
+          <div className="transform rotate-3 scale-110">
+            <Word
+              word={activeWord}
+              containerId={activeWord.inSentence ? 'userSentence' : 'wordBank'}
+            />
+          </div>
         ) : null}
       </DragOverlay>
     </DndContext>

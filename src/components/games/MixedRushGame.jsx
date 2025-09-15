@@ -22,6 +22,9 @@ const MixedRushGame = () => {
 
   // Puan haritası
   const POINTS_MAP = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
+  
+  // Level bazlı süre kazanımı haritası
+  const TIME_BONUS_MAP = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6 };
 
   // useRef, zamanlayıcı bittiğinde skorun GÜNCEL değerine ulaşmak için gereklidir.
   const scoreRef = useRef(score);
@@ -36,11 +39,14 @@ const MixedRushGame = () => {
     setIsLoading(true);
     try {
       const response = await api.get(`/api/games/mixed-rush/random-question?lang=${targetLang}`);
-      setCurrentQuestion({
+      const questionData = {
         type: response.data.type,
         data: response.data.data,
         level: response.data.level
-      });
+      };
+      
+      setCurrentQuestion(questionData);
+      
     } catch (error) {
       console.error(`Failed to fetch data for Mixed Rush`, error);
     } finally {
@@ -110,6 +116,37 @@ const MixedRushGame = () => {
     console.log("Score after update will be:", newScore);
     
     setScore(newScore);
+
+    // 5. MEVCUT sorunun level'ına göre süre bonusu ekle
+    const timeBonus = TIME_BONUS_MAP[level] || 0;
+    if (timeBonus > 0) {
+      setTimeLeft(prevTime => prevTime + timeBonus);
+      console.log(`Time bonus: +${timeBonus}s for level ${level}`);
+    }
+    
+    // 6. Sonraki soruyu getir
+    fetchNextQuestion();
+  };
+
+  // Yanlış cevap verildiğinde tetiklenecek fonksiyon
+  const handleWrongAnswer = () => {
+    console.log("--- handleWrongAnswer triggered! ---");
+
+    // 10 saniye ceza süresi
+    setTimeLeft(prevTime => Math.max(0, prevTime - 10));
+    console.log("Time penalty: -10s for wrong answer");
+
+    // Direkt sonraki soruya geç (puan kazanılmaz, süre bonusu YOK)
+    fetchNextQuestion();
+  };
+
+  // Pass butonu işlevi - 3 saniye ana zamanlayıcıdan çıkar ve hemen sonraki soruya geç
+  const handlePassQuestion = () => {
+    // Ana zamanlayıcıdan 5 saniye çıkar (minimum 0'a kadar)
+    setTimeLeft(prevTime => Math.max(0, prevTime - 5));
+    console.log("Time penalty: -5s for passing question");
+
+    // Hemen sonraki soruya geç (puan kazanılmaz, süre bonusu YOK)
     fetchNextQuestion();
   };
 
@@ -127,9 +164,11 @@ const MixedRushGame = () => {
     if (isLoading || !currentQuestion) {
       return <div className="text-center text-xl">Loading Next Question...</div>;
     }
+
     const gameProps = {
       initialData: currentQuestion.data,
       onCorrectAnswer: handleCorrectAnswer,
+      onWrongAnswer: handleWrongAnswer, // Yeni prop eklendi
       isMixedRush: true,
       level: currentQuestion.level
     };
@@ -174,6 +213,26 @@ const MixedRushGame = () => {
           Time: <span className="text-red-500">{timeLeft}s</span>
         </div>
       </div>
+
+      {/* Bonus bilgisi */}
+      {currentQuestion && (
+        <div className="text-center mb-2 text-sm text-gray-400">
+          Level {currentQuestion.level} • +{TIME_BONUS_MAP[currentQuestion.level] || 0}s time bonus • {POINTS_MAP[currentQuestion.level] || 0} points
+        </div>
+      )}
+
+      {/* Pass butonu - oyun devam ederken göster */}
+      {!isLoading && (
+        <div className="text-center mb-4">
+          <button
+            onClick={handlePassQuestion}
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-6 rounded-lg"
+          >
+            Pass Question (-5s, No Points)
+          </button>
+        </div>
+      )}
+
       <div className="mt-4">
         {renderCurrentGame()}
       </div>

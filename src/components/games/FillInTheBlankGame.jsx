@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
-const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level, isMixedRush }) => {
+const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -196,25 +196,33 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
       if (currentGameId) addSeen(key, currentGameId);
 
       if (typeof onCorrectAnswer === 'function') {
-        setTimeout(onCorrectAnswer, 1000);
+        setTimeout(onCorrectAnswer, 300);
       } else {
         submitScore();
-        // auto-advance to next question after 1s
+        // auto-advance to next question after 0.3s
         nextTimeoutRef.current = setTimeout(() => {
           setFeedback('');
           fetchGame();
-        }, 1000);
+        }, 300);
       }
     } else {
       setFeedback('Wrong!');
+      
+      // MixedRush modunda yanlış cevap için özel işlem
+      if (isMixedRush && typeof onWrongAnswer === 'function') {
+        setTimeout(onWrongAnswer, 300);
+      }
+      // Normal modda manuel "Next Question" butonu var
     }
   };
 
   const getButtonClass = (option) => {
-    if (!feedback) return 'bg-gray-600 hover:bg-gray-500';
-    if (option === gameData.answer) return 'bg-green-600';
-    if (option === selectedOption && option !== gameData.answer) return 'bg-red-600';
-    return 'bg-gray-700 opacity-50';
+    const base = 'w-full text-white font-bold py-3 px-4 rounded transition duration-300 transform border backdrop-blur-sm text-lg';
+    // Daha mat / daha az parlak cyan tonu: biraz daha koyu, hafif opak ve gölge küçültüldü
+    if (!feedback) return `${base} bg-gradient-to-r from-cyan-600/80 to-cyan-700/80 hover:from-cyan-600/95 hover:to-cyan-700/95 border-cyan-300/20 hover:scale-[1.02] shadow-sm`;
+    if (option === gameData.answer) return `${base} bg-gradient-to-r from-green-600 to-green-700 border-green-400/30 shadow-lg scale-[1.02]`;
+    if (option === selectedOption && option !== gameData.answer) return `${base} bg-gradient-to-r from-red-600 to-red-700 border-red-400/30 shadow-lg scale-[1.02]`;
+    return `${base} bg-gradient-to-r from-gray-700 to-gray-800 border-gray-600/30 opacity-60`;
   };
 
   // show completion when seen 5 items
@@ -222,18 +230,17 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
   const seenCountNow = getSeenIds(keyNow).length;
   if (seenCountNow >= 5 && !gameData) {
     return (
-      <div className="bg-gray-800 p-8 rounded-lg w-full max-w-2xl mx-auto text-center">
-        <h2 className="text-2xl text-green-400 font-bold mb-6">Level Complete</h2>
-        <p className="mb-6">You've completed all questions in this level.</p>
-        <div className="flex gap-4 justify-center">
+      <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-xl mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500 shadow-lg">
+        <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete</h2>
+        <p className="mb-4 text-cyan-100">You've completed all questions in this level.</p>
+        <div className="flex gap-3 justify-center flex-wrap">
           <button
             onClick={() => navigate(`/levels/fill-in-the-blank/${categorySlug}`)}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
+            className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
           >
             Back to Levels
           </button>
 
-          {/* Yeni: Kullanıcının aynı levele tekrar girip testi yeniden çözebilmesi için Retry butonu */}
           <button
             onClick={() => {
               // temizle ve tekrar başlat
@@ -242,7 +249,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
               setIsLoading(true);
               fetchGame();
             }}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded"
+            className="bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
           >
             Retry Level
           </button>
@@ -255,7 +262,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
                 setSeenIdsDirect(nextKey, []);
                 navigate(`/game/fill-in-the-blank/${categorySlug}/${parseInt(level) + 1}`);
               }}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-green-400/30"
             >
               Next Level
             </button>
@@ -266,52 +273,66 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, categorySlug, level,
   }
 
   if (isLoading) {
-    return <div className="text-center text-xl">Loading Game...</div>;
+    return (
+      <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-6 rounded-2xl w-full max-w-lg mx-auto text-center border border-cyan-400/20 animate-pulse">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+        <div className="text-lg text-cyan-200">Loading Game...</div>
+      </div>
+    );
   }
 
   if (!gameData) {
-    return <div className="text-center text-xl text-red-400">{feedback}</div>;
+    return (
+      <div className="bg-gradient-to-br from-red-900/20 to-red-800/20 p-6 rounded-2xl w-full max-w-lg mx-auto text-center border border-red-400/20">
+        <div className="text-lg text-red-300">{feedback}</div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-gray-800 p-8 rounded-lg w-full max-w-2xl mx-auto text-center">
-      <h2 className="text-2xl text-green-400 font-bold mb-6">Fill in the Blank</h2>
+    <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-6 rounded-2xl w-full max-w-xl mx-auto text-center border border-cyan-400/30 shadow-2xl animate-in fade-in-50 duration-500">
+      <h2 className="text-2xl text-cyan-300 font-bold mb-4">Fill in the Blank</h2>
       
-      <div className="bg-gray-900 rounded-md p-6 mb-8 text-2xl h-24 flex items-center justify-center">
-        <p className="text-white tracking-wide">
+      <div className="bg-gradient-to-br from-cyan-800/30 to-cyan-900/30 rounded-xl p-5 mb-6 text-xl h-24 flex items-center justify-center border border-cyan-400/20">
+        <p className="text-cyan-50 tracking-wide">
           {gameData.sentence_parts[0]}
-          <span className="inline-block bg-gray-700 text-gray-700 rounded mx-2 px-10 select-none">
+          <span className="inline-block bg-cyan-700/60 text-white rounded mx-2 px-8 py-1 select-none shadow-inner transition-all duration-300">
             {feedback ? gameData.answer : '____'}
           </span>
           {gameData.sentence_parts[1]}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {gameData.options.map((option, index) => (
-          <button
-            key={index}
-            onClick={() => handleOptionClick(option)}
-            disabled={!!feedback}
-            className={`w-full text-white font-bold py-3 px-4 rounded transition duration-300 ${getButtonClass(option)}`}
-          >
-            {option}
-          </button>
+          <div key={index} className="animate-in fade-in-50 slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${index * 70}ms` }}>
+            <button
+              onClick={() => handleOptionClick(option)}
+              disabled={!!feedback}
+              className={getButtonClass(option)}
+            >
+              {option}
+            </button>
+          </div>
         ))}
       </div>
 
       {feedback && (
-        <div className="mt-6">
-          <p className={`text-3xl font-bold ${feedback === 'Correct!' ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="mt-5 text-center animate-in slide-in-from-bottom-3 duration-400">
+          <div className={`inline-block p-3 rounded-lg backdrop-blur-sm border text-lg font-bold mb-3 ${
+            feedback === 'Correct!' ? 'text-green-300 bg-green-900/30 border-green-400/30' : 'text-red-300 bg-red-900/30 border-red-400/30'
+          }`}>
             {feedback}
-          </p>
-          {feedback === 'Wrong!' && (
-            <button
-              onClick={fetchGame}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded"
-            >
-              Next Question
-            </button>
+          </div>
+          {feedback === 'Wrong!' && !isMixedRush && (
+            <div>
+              <button
+                onClick={fetchGame}
+                className="mt-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
+              >
+                Next Question
+              </button>
+            </div>
           )}
         </div>
       )}
