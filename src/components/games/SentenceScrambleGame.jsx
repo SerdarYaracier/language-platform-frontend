@@ -21,6 +21,8 @@ import { LanguageContext } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+// Supabase public bucket for decorative assets (gecko icons)
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
 // 🟢 Kelime componenti
 const Word = memo(({ word, containerId }) => {
@@ -377,7 +379,8 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
   const checkAnswer = () => {
     const userSentence = containers.userSentence.map(w => w.content).join(' ');
     if (userSentence === correctSentence) {
-      setFeedback('🎉 Congratulations! Correct sentence!');
+      // show short success token first; fetchGame may replace with level-complete message
+      setFeedback('Correct!');
       if (typeof onCorrectAnswer === 'function') {
         setTimeout(onCorrectAnswer, 300);
       } else {
@@ -387,7 +390,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
         }, 1500);
       }
     } else {
-      setFeedback('❌ Try again!');
+      setFeedback('Wrong!');
       
       // MixedRush modunda yanlış cevap için özel işlem
       if (isMixedRush && typeof onWrongAnswer === 'function') {
@@ -414,7 +417,14 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
   if (!containers.wordBank.length && !containers.userSentence.length && feedback.includes("Congratulations")) {
     return (
       <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-8 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500">
-        <div className="text-4xl mb-4 animate-bounce">🏆</div>
+        <div className="mb-4 animate-bounce">
+          <img
+            src={`${SUPABASE_BUCKET_URL}/clap_gecko.png`}
+            alt="clap gecko"
+            className="w-20 h-20 mx-auto object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
         <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete!</h2>
         <p className="text-cyan-100 mb-6">{feedback}</p>
         <div className="flex gap-4 justify-center flex-wrap">
@@ -508,15 +518,27 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
 
         {feedback && (
           <div className={`mt-6 text-center animate-in slide-in-from-bottom-3 duration-500`}>
-            <div className={`inline-block p-4 rounded-lg backdrop-blur-sm border text-xl font-bold ${
-              feedback.includes('Congratulations')
-                ? 'text-green-300 bg-green-900/30 border-green-400/30'
-                : 'text-red-300 bg-red-900/30 border-red-400/30'
-            }`}>
-              {feedback}
-            </div>
+            { (feedback === 'Correct!' || feedback === 'Wrong!') ? (
+              <div className={`inline-flex items-center gap-3 p-3 rounded-lg backdrop-blur-sm border text-xl font-bold mb-3 ${
+                feedback === 'Correct!' ? 'text-green-300 bg-green-900/30 border-green-400/30' : 'text-red-300 bg-red-900/30 border-red-400/30'
+              }`}>
+                <img
+                  src={`${SUPABASE_BUCKET_URL}/${feedback === 'Correct!' ? 'happy_gecko.png' : 'sad_gecko.png'}`}
+                  alt={feedback === 'Correct!' ? 'happy gecko' : 'sad gecko'}
+                  className="w-8 h-8 object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+                <span>{feedback}</span>
+              </div>
+            ) : (
+              <div className={`inline-block p-4 rounded-lg backdrop-blur-sm border text-xl font-bold ${
+                feedback.includes('Congratulations') ? 'text-green-300 bg-green-900/30 border-green-400/30' : 'text-red-300 bg-red-900/30 border-red-400/30'
+              }`}>
+                {feedback}
+              </div>
+            )}
           </div>
-        )}
+         )}
       </div>
 
       <DragOverlay>

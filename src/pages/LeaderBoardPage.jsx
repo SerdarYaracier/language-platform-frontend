@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import LeaderboardTable from '../components/LeaderboardTable';
 
+// Supabase bucket for decorative assets
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
+
 const LeaderboardPage = () => {
   const [leaderboards, setLeaderboards] = useState({
     total_score: [],
@@ -41,11 +44,71 @@ const LeaderboardPage = () => {
   }, []);
 
   const tabs = [
-    { id: 'total_score', title: 'Overall Champions', icon: '🏆', color: 'from-yellow-600 to-yellow-700' },
-    { id: 'mixed_rush', title: 'Speed Masters', icon: '⚡', color: 'from-red-600 to-red-700' },
-    { id: 'image_match', title: 'Visual Experts', icon: '🖼️', color: 'from-purple-600 to-purple-700' },
-    { id: 'sentence_scramble', title: 'Word Wizards', icon: '🔤', color: 'from-cyan-600 to-cyan-700' },
-    { id: 'fill_in_the_blank', title: 'Grammar Gurus', icon: '📝', color: 'from-green-600 to-green-700' },
+    {
+      id: 'total_score',
+      title: 'Overall Champions',
+      icon: (
+        <img
+          src={`${SUPABASE_BUCKET_URL}/cup_gecko.png`}
+          alt="cup gecko"
+          className="w-8 h-8 object-contain rounded-full"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ),
+      color: 'from-yellow-600 to-yellow-700'
+    },
+    {
+      id: 'mixed_rush',
+      title: 'Speed Masters',
+      icon: (
+        <img
+          src={`${SUPABASE_BUCKET_URL}/lightning_gecko.png`}
+          alt="lightning gecko"
+          className="w-8 h-8 object-contain rounded-full"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ),
+      color: 'from-red-600 to-red-700'
+    },
+    {
+      id: 'image_match',
+      title: 'Visual Experts',
+      icon: (
+        <img
+          src={`${SUPABASE_BUCKET_URL}/image-match-gecko.png`}
+          alt="image match gecko"
+          className="w-8 h-8 object-contain rounded-full"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ),
+      color: 'from-purple-600 to-purple-700'
+    },
+    {
+      id: 'sentence_scramble',
+      title: 'Word Wizards',
+      icon: (
+        <img
+          src={`${SUPABASE_BUCKET_URL}/scramble_gecko.png`}
+          alt="scramble gecko"
+          className="w-8 h-8 object-contain rounded-full"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ),
+      color: 'from-cyan-600 to-cyan-700'
+    },
+    {
+      id: 'fill_in_the_blank',
+      title: 'Grammar Gurus',
+      icon: (
+        <img
+          src={`${SUPABASE_BUCKET_URL}/fiib_gecko.png`}
+          alt="fiib gecko"
+          className="w-8 h-8 object-contain rounded-full"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ),
+      color: 'from-green-600 to-green-700'
+    },
   ];
 
   const getTabButtonClass = (tabId) => {
@@ -62,8 +125,16 @@ const LeaderboardPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-5xl lg:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500 bg-clip-text text-transparent animate-in fade-in-50 duration-700">
-            🏆 Hall of Fame
+          <h1 className="text-5xl lg:text-6xl font-bold mb-4 animate-in fade-in-50 duration-700">
+            <span className="inline-flex items-center gap-4 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500">
+              <img
+                src={`${SUPABASE_BUCKET_URL}/cup2_gecko.png`}
+                alt="cup gecko"
+                className="w-14 h-14 object-contain rounded-full"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <span>Hall of Fame</span>
+            </span>
           </h1>
           <p className="text-xl text-gray-300 mb-6 animate-in slide-in-from-bottom-2 duration-500">
             Celebrate the top performers across all language learning games

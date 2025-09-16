@@ -122,7 +122,7 @@ const Header = () => {
         {/* App name / logo on the left */}
         <div className="flex items-center gap-4">
           <Link to="/" className="text-2xl font-bold text-cyan-300 hover:text-cyan-100 transition-all duration-300 transform hover:scale-105 drop-shadow-lg">
-            Language Platform
+            LingoSolve
           </Link>
 
           {/* Language selector with flags */}

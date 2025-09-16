@@ -4,6 +4,8 @@ import axios from 'axios';
 import { LanguageContext } from '../context/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+// Supabase public bucket for stored assets
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
 const CategorySelectionPage = () => {
   const { gameSlug } = useParams(); 
@@ -61,70 +63,86 @@ const CategorySelectionPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-900/10 to-cyan-800/10 backdrop-blur-sm p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header section */}
-        <div className="text-center mb-12 animate-in fade-in-50 duration-700">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-cyan-300 to-cyan-100 bg-clip-text text-transparent">
-            Choose a Category
-          </h1>
-          <p className="text-xl text-cyan-200/80 mb-2">
-            Select a category for <span className="font-semibold text-cyan-300">{gameNames[gameSlug] || gameSlug}</span>
-          </p>
-          <div className="w-24 h-1 bg-gradient-to-r from-cyan-400 to-cyan-600 mx-auto rounded-full"></div>
+        {/* top half-circle visual — now full-width of container, marginless and semi-transparent,
+            header text overlays the image */}
+        <div className="relative w-full overflow-hidden rounded-b-full shadow-2xl border border-cyan-400/10">
+          <img
+            src={`${SUPABASE_BUCKET_URL}/down_gecko2.png`}
+            alt="decorative gecko"
+            className="w-full h-44 md:h-56 lg:h-72 object-cover opacity-85"
+            onError={(e) => { e.currentTarget.style.objectFit = 'contain'; e.currentTarget.style.background = 'linear-gradient(90deg, rgba(2,6,23,0.6), rgba(6,95,70,0.25))'; }}
+          />
+
+          {/* semi-transparent overlay to darken image for legible text */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/30 pointer-events-none"></div>
+
+          {/* overlayed header content centered vertically on image */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold bg-gradient-to-r from-cyan-300 to-cyan-100 bg-clip-text text-transparent leading-tight drop-shadow-md">
+              Choose a Category
+            </h1>
+            <p className="mt-2 text-sm md:text-lg text-cyan-100/85">
+              Select a category for <span className="font-semibold text-cyan-200">{gameNames[gameSlug] || gameSlug}</span>
+            </p>
+            <div className="mt-3 w-28 h-1 bg-gradient-to-r from-cyan-400 to-cyan-600 rounded-full opacity-95"></div>
+          </div>
         </div>
 
         {/* Categories grid */}
-        {categories.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {categories.map((category, index) => (
-              <div
-                key={category.id}
-                className="animate-in fade-in-50 slide-in-from-bottom-2 duration-500"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <Link
-                  to={`/levels/${gameSlug}/${category.slug}`}
-                  className="group block bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl border border-cyan-400/20 hover:border-cyan-300/40 hover:from-cyan-800/40 hover:to-cyan-700/40"
+        <div className="mt-8">
+          {categories.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {categories.map((category, index) => (
+                <div
+                  key={category.id}
+                  className="animate-in fade-in-50 slide-in-from-bottom-2 duration-500"
+                  style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  {/* Category icon/emoji based on name */}
-                  <div className="text-4xl mb-4 text-center group-hover:scale-110 transition-transform duration-300">
-                    {category.name.en?.toLowerCase().includes('animal') && '🐾'}
-                    {category.name.en?.toLowerCase().includes('food') && '🍽️'}
-                    {category.name.en?.toLowerCase().includes('color') && '🎨'}
-                    {category.name.en?.toLowerCase().includes('number') && '🔢'}
-                    {category.name.en?.toLowerCase().includes('family') && '👨‍👩‍👧‍👦'}
-                    {category.name.en?.toLowerCase().includes('house') && '🏠'}
-                    {category.name.en?.toLowerCase().includes('transport') && '🚗'}
-                    {category.name.en?.toLowerCase().includes('nature') && '🌿'}
-                    {category.name.en?.toLowerCase().includes('body') && '👤'}
-                    {category.name.en?.toLowerCase().includes('cloth') && '👕'}
-                    {!category.name.en?.toLowerCase().match(/(animal|food|color|number|family|house|transport|nature|body|cloth)/) && '📚'}
-                  </div>
-                  
-                  <h2 className="text-xl font-bold text-cyan-100 text-center group-hover:text-white transition-colors duration-300">
-                    {category.name[targetLang] || category.name['en']}
-                  </h2>
-                  
-                  {/* Hover indicator */}
-                  <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <span className="inline-block bg-cyan-500/20 text-cyan-300 px-3 py-1 rounded-full text-sm font-medium">
-                      Start Learning →
-                    </span>
-                  </div>
-                </Link>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center animate-in fade-in-50 duration-500">
-            <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-12 rounded-2xl border border-cyan-400/20 max-w-md mx-auto">
-              <div className="text-6xl mb-6">📚</div>
-              <p className="text-xl text-cyan-200 mb-4">No categories available</p>
-              <p className="text-cyan-300/70">
-                Categories for this game haven't been added yet. Check back later!
-              </p>
+                  <Link
+                    to={`/levels/${gameSlug}/${category.slug}`}
+                    className="group block bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl border border-cyan-400/20 hover:border-cyan-300/40"
+                  >
+                    {/* Category icon/emoji based on name */}
+                    <div className="text-4xl mb-4 text-center group-hover:scale-110 transition-transform duration-300">
+                      {category.name.en?.toLowerCase().includes('animal') && '🐾'}
+                      {category.name.en?.toLowerCase().includes('food') && '🍽️'}
+                      {category.name.en?.toLowerCase().includes('color') && '🎨'}
+                      {category.name.en?.toLowerCase().includes('number') && '🔢'}
+                      {category.name.en?.toLowerCase().includes('family') && '👨‍👩‍👧‍👦'}
+                      {category.name.en?.toLowerCase().includes('house') && '🏠'}
+                      {category.name.en?.toLowerCase().includes('transport') && '🚗'}
+                      {category.name.en?.toLowerCase().includes('nature') && '🌿'}
+                      {category.name.en?.toLowerCase().includes('body') && '👤'}
+                      {category.name.en?.toLowerCase().includes('cloth') && '👕'}
+                      {!category.name.en?.toLowerCase().match(/(animal|food|color|number|family|house|transport|nature|body|cloth)/) && '📚'}
+                    </div>
+                    
+                    <h2 className="text-xl font-bold text-cyan-100 text-center group-hover:text-white transition-colors duration-300">
+                      {category.name[targetLang] || category.name['en']}
+                    </h2>
+                    
+                    {/* Hover indicator */}
+                    <div className="mt-4 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="inline-block bg-cyan-500/20 text-cyan-300 px-3 py-1 rounded-full text-sm font-medium">
+                        Start Learning →
+                      </span>
+                    </div>
+                  </Link>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-center animate-in fade-in-50 duration-500">
+              <div className="bg-gradient-to-br from-cyan-900/20 to-cyan-800/20 backdrop-blur-sm p-12 rounded-2xl border border-cyan-400/20 max-w-md mx-auto">
+                <div className="text-6xl mb-6">📚</div>
+                <p className="text-xl text-cyan-200 mb-4">No categories available</p>
+                <p className="text-cyan-300/70">
+                  Categories for this game haven't been added yet. Check back later!
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Back button */}
         <div className="text-center mt-12 animate-in fade-in-50 duration-700">

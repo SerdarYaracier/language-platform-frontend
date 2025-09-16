@@ -4,6 +4,9 @@ import api from '../../api';
 import { LanguageContext } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 
+// Supabase public bucket for decorative assets (gecko icons)
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
+
 const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
@@ -11,6 +14,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
   const [gameData, setGameData] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
   const [feedback, setFeedback] = useState('');
+  const [lastResult, setLastResult] = useState(null); // 'correct' | 'wrong' | null
   const [isLoading, setIsLoading] = useState(true);
   const [seenQuestionIds, setSeenQuestionIds] = useState([]);
   const seenQuestionIdsRef = useRef([]);
@@ -40,6 +44,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
     setGameData(null);
     setSelectedOption(null);
     setFeedback('');
+    setLastResult(null);
 
     // Current seen IDs'i ref'ten al (güncel değer)
     const currentSeenIds = seenQuestionIdsRef.current;
@@ -144,6 +149,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
     setGameData(null);
     setIsLoading(true);
     setSeenQuestionIds([]);
+    setLastResult(null);
 
     if (initialData) {
       setGameData(initialData);
@@ -177,7 +183,8 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
     setSelectedOption(option);
 
     if (option === gameData?.answer) {
-      setFeedback('🎉 Correct!');
+      setFeedback('Correct!');
+      setLastResult('correct');
       if (typeof onCorrectAnswer === 'function') {
         setTimeout(onCorrectAnswer, 300);
       } else {
@@ -187,7 +194,8 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
         }, 1500);
       }
     } else {
-      setFeedback(`❌ Wrong! Correct answer: ${gameData.answer}`);
+      setFeedback(`Wrong! Correct answer: ${gameData.answer}`);
+      setLastResult('wrong');
       
       // MixedRush modunda yanlış cevap için özel işlem
       if (isMixedRush && typeof onWrongAnswer === 'function') {
@@ -232,7 +240,14 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
   if (!gameData && feedback.includes("Congratulations")) {
     return (
       <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-md mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500">
-        <div className="text-4xl mb-4 animate-bounce">🏆</div>
+        <div className="mb-4 animate-bounce">
+          <img
+            src={`${SUPABASE_BUCKET_URL}/clap_gecko.png`}
+            alt="clap gecko"
+            className="w-24 h-24 mx-auto object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
         <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete!</h2>
         <p className="text-cyan-100 mb-6">{feedback}</p>
         <div className="flex gap-3 justify-center flex-wrap">
@@ -345,7 +360,25 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
               ? 'text-green-300 bg-green-900/30 border-green-400/30'
               : 'text-red-300 bg-red-900/30 border-red-400/30'
           }`}>
-            {feedback}
+            <div className="flex items-center gap-3">
+              {lastResult === 'correct' && (
+                <img
+                  src={`${SUPABASE_BUCKET_URL}/happy_gecko.png`}
+                  alt="happy gecko"
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              )}
+              {lastResult === 'wrong' && (
+                <img
+                  src={`${SUPABASE_BUCKET_URL}/sad_gecko.png`}
+                  alt="sad gecko"
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              )}
+              <span>{feedback}</span>
+            </div>
           </div>
           
           {feedback !== '🎉 Correct!' && !isMixedRush && (

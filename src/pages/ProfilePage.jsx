@@ -4,6 +4,9 @@ import api from '../api';
 import AchievementsList from '../components/AchievementsList';
 import FriendsModal from '../components/FriendsModal';
 
+// Supabase bucket for decorative assets
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
+
 // Yardımcı fonksiyon
 const getGameName = (slug) => {
   const names = {
@@ -130,9 +133,15 @@ const ProfilePage = () => {
                   
                   <button 
                     onClick={() => setIsFriendsModalOpen(true)}
-                    className="mt-4 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/20"
+                    className="mt-4 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/20 flex items-center"
                   >
-                    👥 Friends
+                    <img
+                      src={`${SUPABASE_BUCKET_URL}/friends_gecko.png`}
+                      alt="friends gecko"
+                      className="w-10 h-10 rounded-full object-cover mr-2"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <span>Friends</span>
                   </button>
                 </div>
 
@@ -140,7 +149,14 @@ const ProfilePage = () => {
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 lg:ml-8">
                   {/* Total Score Card */}
                   <div className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 backdrop-blur-sm p-6 rounded-2xl border border-yellow-400/20 text-center transform hover:scale-105 transition-all duration-300">
-                    <div className="text-4xl mb-2">🏆</div>
+                    <div className="mb-2 flex items-center justify-center">
+                      <img
+                        src={`${SUPABASE_BUCKET_URL}/cup2_gecko.png`}
+                        alt="cup gecko"
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
                     <h3 className="text-yellow-200 font-semibold mb-2">Total Score</h3>
                     <p className="text-4xl font-bold text-yellow-300">
                       {profileDetails.total_score?.toLocaleString() || '0'}
@@ -149,7 +165,14 @@ const ProfilePage = () => {
 
                   {/* Mixed Rush Card */}
                   <div className="bg-gradient-to-br from-red-900/30 to-red-800/30 backdrop-blur-sm p-6 rounded-2xl border border-red-400/20 text-center transform hover:scale-105 transition-all duration-300">
-                    <div className="text-4xl mb-2">⚡</div>
+                    <div className="mb-2 flex items-center justify-center">
+                      <img
+                        src={`${SUPABASE_BUCKET_URL}/lightning_gecko.png`}
+                        alt="lightning gecko"
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
                     <h3 className="text-red-200 font-semibold mb-2">Mixed Rush</h3>
                     <p className="text-4xl font-bold text-red-300">
                       {profileDetails.mixed_rush_highscore?.toLocaleString() || '0'}
@@ -202,7 +225,23 @@ const ProfilePage = () => {
           </div>
 
           {/* Achievements Section */}
-          <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm p-8 rounded-3xl border border-purple-400/20 shadow-2xl">
+          <div className="relative bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm p-8 rounded-3xl border border-purple-400/20 shadow-2xl overflow-hidden">
+            {/* Left medal gecko */}
+            <img
+              src={`${SUPABASE_BUCKET_URL}/medal_gecko_left.png`}
+              alt="medal gecko left"
+              className="absolute top-6 left-6 w-16 h-16 md:w-30 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+
+            {/* Right medal gecko */}
+            <img
+              src={`${SUPABASE_BUCKET_URL}/medal_gecko_right.png`}
+              alt="medal gecko right"
+              className="absolute top-6 right-6 w-16 h-16 md:w-30 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+
             <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-purple-300 to-pink-300 bg-clip-text text-transparent">
               🏅 Achievements
             </h2>

@@ -4,6 +4,8 @@ import axios from 'axios';
 import { LanguageContext } from '../context/LanguageContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+// Supabase public bucket for decorative assets
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
 const LevelSelectionPage = () => {
   const { gameSlug, categorySlug } = useParams();
@@ -78,19 +80,32 @@ const LevelSelectionPage = () => {
                 to={`/game/${gameSlug}/${categorySlug}/${level}`}
                 className="group block transform transition-all duration-300 hover:scale-105"
               >
-                <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl border border-cyan-400/20 shadow-md hover:shadow-2xl h-full flex flex-col items-center justify-between">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-full bg-cyan-700/20 border border-cyan-300/10 mb-4 group-hover:scale-105 transition-transform duration-300">
-                    <span className="text-2xl font-extrabold text-cyan-200">L{level}</span>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-lg font-bold text-cyan-100 mb-2">Level {level}</h3>
-                    <p className="text-cyan-200/70 text-sm">Difficulty: {Math.min(Math.max(level,1),10)}</p>
-                  </div>
-                  <div className="mt-4 w-full">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="inline-block text-sm text-cyan-300/90 bg-cyan-800/30 px-3 py-1 rounded-full border border-cyan-400/10">Play</span>
-                      <span className="text-sm text-cyan-200/70">Estimated time: {5 + level * 2}m</span>
+                <div className="relative overflow-hidden pr-14 bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm rounded-2xl border border-cyan-400/20 shadow-md hover:shadow-2xl h-full">
+                  {/* main content above the decorative half-circle */}
+                  <div className="relative z-10 p-6 h-full flex flex-col items-center justify-between">
+                    <div className="flex items-center justify-center w-16 h-16 rounded-full bg-cyan-700/20 border border-cyan-300/10 mb-4 group-hover:scale-105 transition-transform duration-300">
+                      <span className="text-2xl font-extrabold text-cyan-200">L{level}</span>
                     </div>
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-cyan-100 mb-2">Level {level}</h3>
+                      <p className="text-cyan-200/70 text-sm">Difficulty: {Math.min(Math.max(level,1),10)}</p>
+                    </div>
+                    <div className="mt-4 w-full">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="inline-block text-sm text-cyan-300/90 bg-cyan-800/30 px-3 py-1 rounded-full border border-cyan-400/10">Play</span>
+                        <span className="text-sm text-cyan-200/70">Estimated time: {5 + level * 2}m</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* decorative half-circle on the right, semi-transparent and placed under texts */}
+                  <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/4 w-36 h-36 lg:w-44 lg:h-44 rounded-l-full overflow-hidden opacity-40 pointer-events-none z-0">
+                    <img
+                      src={`${SUPABASE_BUCKET_URL}/hands_down_gecko.png`}
+                      alt="decorative gecko"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.objectFit = 'contain'; e.currentTarget.style.background = 'linear-gradient(90deg, rgba(2,6,23,0.2), rgba(6,95,70,0.12))'; }}
+                    />
                   </div>
                 </div>
               </Link>

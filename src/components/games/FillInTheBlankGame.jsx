@@ -5,6 +5,8 @@ import { LanguageContext } from '../../context/LanguageContext'; // Dosya yolu g
 import { useAuth } from '../../context/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
+// Supabase bucket for decorative game assets
+const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
 const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
   const navigate = useNavigate();
@@ -231,6 +233,14 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
   if (seenCountNow >= 5 && !gameData) {
     return (
       <div className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl w-full max-w-xl mx-auto text-center border border-cyan-400/30 animate-in zoom-in-95 duration-500 shadow-lg">
+        <div className="mb-4 animate-bounce">
+          <img
+            src={`${SUPABASE_BUCKET_URL}/clap_gecko.png`}
+            alt="clap gecko"
+            className="w-24 h-24 mx-auto object-contain"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+        </div>
         <h2 className="text-2xl text-cyan-300 font-bold mb-4">Level Complete</h2>
         <p className="mb-4 text-cyan-100">You've completed all questions in this level.</p>
         <div className="flex gap-3 justify-center flex-wrap">
@@ -319,23 +329,29 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
 
       {feedback && (
         <div className="mt-5 text-center animate-in slide-in-from-bottom-3 duration-400">
-          <div className={`inline-block p-3 rounded-lg backdrop-blur-sm border text-lg font-bold mb-3 ${
+          <div className={`inline-flex items-center gap-3 p-3 rounded-lg backdrop-blur-sm border text-lg font-bold mb-3 ${
             feedback === 'Correct!' ? 'text-green-300 bg-green-900/30 border-green-400/30' : 'text-red-300 bg-red-900/30 border-red-400/30'
           }`}>
-            {feedback}
+            <img
+              src={`${SUPABASE_BUCKET_URL}/${feedback === 'Correct!' ? 'happy_gecko.png' : 'sad_gecko.png'}`}
+              alt={feedback === 'Correct!' ? 'happy gecko' : 'sad gecko'}
+              className="w-8 h-8 object-contain"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+            <span>{feedback}</span>
           </div>
-          {feedback === 'Wrong!' && !isMixedRush && (
-            <div>
-              <button
-                onClick={fetchGame}
-                className="mt-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
-              >
-                Next Question
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+           {feedback === 'Wrong!' && !isMixedRush && (
+             <div>
+               <button
+                 onClick={fetchGame}
+                 className="mt-2 bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg border border-cyan-400/30"
+               >
+                 Next Question
+               </button>
+             </div>
+           )}
+         </div>
+       )}
     </div>
   );
 };
