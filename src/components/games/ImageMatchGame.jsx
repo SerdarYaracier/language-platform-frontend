@@ -166,11 +166,20 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
 
   const submitScore = async () => {
     if (isMixedRush) return;
+    
+    // Calculate points based on level: 1→5, 2→7, 3→10, 4→15, 5→17
+    const getPointsForLevel = (lvl) => {
+      const levelNum = parseInt(lvl) || 1;
+      const pointsMap = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
+      return pointsMap[levelNum] || 5; // fallback to 5 points for unknown levels
+    };
+    
     try {
       await api.post('/api/progress/submit-score', {
         gameSlug: 'image-match',
         categorySlug: categorySlug,
         level: level,
+        points: getPointsForLevel(level), // Send calculated points
       });
       if (typeof refreshProfile === 'function') refreshProfile();
     } catch (error) {

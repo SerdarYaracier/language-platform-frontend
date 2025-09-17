@@ -174,11 +174,20 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
 
   const submitScore = async () => {
     if (isMixedRush) return;
+    
+    // Calculate points based on level: 1→5, 2→7, 3→10, 4→15, 5→17
+    const getPointsForLevel = (lvl) => {
+      const levelNum = parseInt(lvl) || 1;
+      const pointsMap = { 1: 5, 2: 7, 3: 10, 4: 15, 5: 17 };
+      return pointsMap[levelNum] || 5; // fallback to 5 points for unknown levels
+    };
+    
     try {
       await api.post('/api/progress/submit-score', {
         gameSlug: 'fill-in-the-blank',
         categorySlug: categorySlug,
         level: level,
+        points: getPointsForLevel(level), // Send calculated points
       });
       console.log('Score submitted for fill-in-the-blank');
       if (typeof refreshProfile === 'function') refreshProfile();
