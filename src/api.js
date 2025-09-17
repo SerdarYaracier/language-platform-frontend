@@ -14,11 +14,24 @@ api.interceptors.request.use(
   async (config) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      console.debug('[API] Session check:', { 
+        hasSession: !!session, 
+        hasToken: !!session?.access_token,
+        url: config.url,
+        tokenPreview: session?.access_token ? session.access_token.substring(0, 20) + '...' : 'none'
+      });
       if (session?.access_token) {
+        // Backend expects clean Bearer token, not JSON-wrapped
         config.headers.Authorization = `Bearer ${session.access_token}`;
+      } else {
+        console.warn('[API] No access token available for request to:', config.url);
+        // Remove any existing Authorization header if no token
+        delete config.headers.Authorization;
       }
     } catch (error) {
       console.error('Failed to get session for API request:', error);
+      // Remove Authorization header on error
+      delete config.headers.Authorization;
     }
     return config;
   },

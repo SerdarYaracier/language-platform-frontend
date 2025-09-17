@@ -7,6 +7,149 @@ import FriendsModal from '../components/FriendsModal';
 // Supabase bucket for decorative assets
 const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
+// Avatar Modal Component
+const AvatarModal = ({ isOpen, onClose, currentAvatar, onAvatarUpdate }) => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Placeholder avatars
+  const placeholderAvatars = [
+    'https://ui-avatars.com/api/?name=Player1&background=1e40af&color=ffffff&rounded=true&size=256',
+    'https://ui-avatars.com/api/?name=Player2&background=dc2626&color=ffffff&rounded=true&size=256',
+    'https://ui-avatars.com/api/?name=Player3&background=059669&color=ffffff&rounded=true&size=256',
+    'https://ui-avatars.com/api/?name=Player4&background=7c2d12&color=ffffff&rounded=true&size=256',
+    'https://ui-avatars.com/api/?name=Player5&background=5b21b6&color=ffffff&rounded=true&size=256'
+  ];
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+  };
+
+  const handleUploadFromDesktop = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      // Upload to your backend/supabase
+      const uploadResponse = await api.post('/api/upload-avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (uploadResponse.data.avatar_url) {
+        await onAvatarUpdate(uploadResponse.data.avatar_url);
+        onClose();
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePlaceholderSelect = async (avatarUrl) => {
+    try {
+      await onAvatarUpdate(avatarUrl);
+      onClose();
+    } catch (error) {
+      console.error('Avatar update failed:', error);
+      alert('Avatar update failed. Please try again.');
+    }
+  };
+
+  const resetModal = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 max-w-md w-full border border-cyan-400/20 shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold text-white">Update Avatar</h3>
+          <button
+            onClick={() => { onClose(); resetModal(); }}
+            className="text-gray-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Current Avatar */}
+        <div className="text-center mb-6">
+          <img
+            src={previewUrl || currentAvatar}
+            alt="Current avatar"
+            className="w-24 h-24 rounded-full mx-auto border-4 border-cyan-400/30"
+          />
+          <p className="text-gray-300 text-sm mt-2">Current Avatar</p>
+        </div>
+
+        {/* Choose Avatar Section */}
+        <div className="mb-6">
+          <h4 className="text-lg font-semibold text-white mb-3">Choose an Avatar</h4>
+          <div className="grid grid-cols-5 gap-3">
+            {placeholderAvatars.map((avatar, index) => (
+              <button
+                key={index}
+                onClick={() => handlePlaceholderSelect(avatar)}
+                className="w-12 h-12 rounded-full border-2 border-gray-600 hover:border-cyan-400 transition-all duration-300 overflow-hidden"
+              >
+                <img
+                  src={avatar}
+                  alt={`Avatar ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Upload from Desktop Section */}
+        <div className="mb-6">
+          <h4 className="text-lg font-semibold text-white mb-3">Select from Desktop</h4>
+          <div className="space-y-3">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+              id="avatar-upload"
+            />
+            <label
+              htmlFor="avatar-upload"
+              className="block w-full bg-gradient-to-r from-cyan-600 to-cyan-700 hover:from-cyan-500 hover:to-cyan-600 text-white font-bold py-3 px-4 rounded-lg text-center cursor-pointer transition-all duration-300"
+            >
+              Choose File
+            </label>
+            
+            {selectedFile && (
+              <button
+                onClick={handleUploadFromDesktop}
+                disabled={isUploading}
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300"
+              >
+                {isUploading ? 'Uploading...' : 'Upload Selected File'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Yardımcı fonksiyon
 const getGameName = (slug) => {
   const names = {
@@ -32,6 +175,25 @@ const ProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+
+  const handleAvatarUpdate = async (newAvatarUrl) => {
+    try {
+      await api.post('/api/profile/avatar', { avatar_url: newAvatarUrl });
+      
+      // Update local state
+      setProfileData(prev => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          avatar_url: newAvatarUrl
+        }
+      }));
+    } catch (error) {
+      console.error('Failed to update avatar:', error);
+      throw error;
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -116,11 +278,21 @@ const ProfilePage = () => {
                 {/* Avatar & Main Info */}
                 <div className="flex flex-col items-center lg:items-start">
                   <div className="relative">
-                    <img 
-                      src={avatarUrl} 
-                      alt="avatar" 
-                      className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover border-4 border-cyan-400/30 shadow-2xl"
-                    />
+                    <button
+                      onClick={() => setIsAvatarModalOpen(true)}
+                      className="relative group"
+                    >
+                      <img 
+                        src={avatarUrl} 
+                        alt="avatar" 
+                        className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover border-4 border-cyan-400/30 shadow-2xl transition-all duration-300 group-hover:opacity-80"
+                      />
+                      <div className="absolute inset-0 rounded-full bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-300 flex items-center justify-center">
+                        <span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          Change Avatar
+                        </span>
+                      </div>
+                    </button>
                     <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-gray-900 flex items-center justify-center">
                       <span className="text-xs">🌟</span>
                     </div>
@@ -230,7 +402,7 @@ const ProfilePage = () => {
             <img
               src={`${SUPABASE_BUCKET_URL}/medal_gecko_left.png`}
               alt="medal gecko left"
-              className="absolute top-6 left-6 w-16 h-16 md:w-30 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
+              className="absolute top-8 left-8 w-32 h-24 md:w-24 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
 
@@ -238,7 +410,7 @@ const ProfilePage = () => {
             <img
               src={`${SUPABASE_BUCKET_URL}/medal_gecko_right.png`}
               alt="medal gecko right"
-              className="absolute top-6 right-6 w-16 h-16 md:w-30 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
+              className="absolute top-8 right-8 w-32 h-24 md:w-24 md:h-30 lg:w-32 lg:h-32 rounded-full opacity-70 pointer-events-none"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
 
@@ -254,6 +426,14 @@ const ProfilePage = () => {
       <FriendsModal 
         isOpen={isFriendsModalOpen} 
         onClose={() => setIsFriendsModalOpen(false)} 
+      />
+
+      {/* Avatar Modal */}
+      <AvatarModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        currentAvatar={avatarUrl}
+        onAvatarUpdate={handleAvatarUpdate}
       />
     </>
   );

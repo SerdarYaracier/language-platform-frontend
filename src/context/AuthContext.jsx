@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.debug('[AuthContext] Auth state change:', { event, hasSession: !!session, hasUser: !!session?.user });
       setUser(session?.user ?? null);
       setLoading(false);
     });
@@ -48,7 +49,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 // 3. Diğer bileşenlerden context'e kolayca erişmek için bir custom hook
-export const useAuth = () => {
+export function useAuth() {
   return useContext(AuthContext);
-};
+}
 
