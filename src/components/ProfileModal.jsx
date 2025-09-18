@@ -74,9 +74,13 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
   const profileDetails = dataToUse.profile || {};
   const gameScores = dataToUse.game_scores || [];
   const achievements = dataToUse.achievements || [];
-  const totalCategorizedScore = gameScores.reduce((sum, game) => sum + (game.score || 0), 0);
+  const totalCategorizedScore = gameScores.reduce((sum, game) => sum + (game.score || game.total_score_for_game || 0), 0);
 
   const showLoading = isLoading || isLoadingFull;
+
+  // Fallbacks: sometimes callers pass profileData at top-level (profileData.username)
+  const displayUsername = profileDetails.username || dataToUse.username || profileData?.username || '';
+  const profileId = profileDetails.id || dataToUse.id || null;
 
   return (
     <div
@@ -102,7 +106,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
             <div className="text-4xl mb-4">⚠️</div>
             <div className="text-xl text-red-300">{error}</div>
           </div>
-        ) : !profileDetails.username ? (
+        ) : !displayUsername ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-4xl mb-4">👤</div>
             <div className="text-xl text-red-300">Profile not found.</div>
@@ -116,12 +120,12 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
                 <div className="relative">
                   <div className="w-28 h-28 rounded-full p-1 bg-gradient-to-r from-cyan-400 to-purple-400">
                     <img
-                      src={profileDetails.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${profileDetails.username}`}
-                      alt={profileDetails.username}
+                      src={profileDetails.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${displayUsername}`}
+                      alt={displayUsername}
                       className="w-full h-full rounded-full bg-slate-800 object-cover"
                     />
                   </div>
-                  {user?.id === profileDetails.id && (
+                  {user?.id === profileId && (
                     <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white text-xs px-3 py-1 rounded-full border border-cyan-400/30">
                       You
                     </div>
@@ -156,21 +160,21 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
                         {gameScores.length > 0 ? (
                           gameScores.map((g) => (
                             <div
-                              key={g.game_slug}
+                              key={g.game_type_slug}
                               className="w-full bg-slate-800/50 rounded-xl p-4 border border-slate-600/30 flex items-center justify-between"
                             >
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-cyan-700/20 rounded-lg flex items-center justify-center text-2xl">
-                                  {getGameIcon(g.game_slug)}
+                                  {getGameIcon(g.game_type_slug)}
                                 </div>
                                 <div>
-                                  <div className="text-sm text-cyan-100 font-medium">{getGameName(g.game_slug)}</div>
+                                  <div className="text-sm text-cyan-100 font-medium">{getGameName(g.game_type_slug)}</div>
                                   <div className="text-xs text-slate-300">{g.description || ''}</div>
                                 </div>
                               </div>
 
                               <div className="text-right">
-                                <div className="text-white text-lg font-bold">{(g.score || 0).toLocaleString()}</div>
+                                <div className="text-white text-lg font-bold">{(g.score || g.total_score_for_game || 0).toLocaleString()}</div>
                               </div>
                             </div>
                           ))
@@ -245,7 +249,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
               </div>
               <div className="bg-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">
                 <div className="text-2xl mb-1">🏅</div>
-                <div className="text-sm text-slate-300">Achievements</div>
+                <div className="text-sm text-slate-300">Achieve<br />ments</div>
                 <div className="text-lg font-bold text-white">{achievements.length}</div>
               </div>
               <div className="bg-slate-800/50 p-4 rounded-xl text-center border border-slate-600/30">

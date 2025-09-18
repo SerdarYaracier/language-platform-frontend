@@ -102,7 +102,7 @@ const AvatarModal = ({ isOpen, onClose, currentAvatar, onAvatarUpdate }) => {
           <div className="grid grid-cols-5 gap-3">
             {placeholderAvatars.map((avatar, index) => (
               <button
-                key={index}
+                key={avatar}
                 onClick={() => handlePlaceholderSelect(avatar)}
                 className="w-12 h-12 rounded-full border-2 border-gray-600 hover:border-cyan-400 transition-all duration-300 overflow-hidden"
               >
@@ -363,29 +363,33 @@ const ProfilePage = () => {
             
             {gameScores.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {gameScores.map((game, index) => (
-                  <div 
-                    key={game.game_slug} 
-                    className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl border border-cyan-400/20 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <div className="text-center">
-                      <div className="text-5xl mb-4">{getGameIcon(game.game_slug)}</div>
-                      <h3 className="text-xl font-semibold text-cyan-100 mb-2">
-                        {getGameName(game.game_slug)}
-                      </h3>
-                      <div className="text-3xl font-bold text-cyan-300 mb-2">
-                        {game.score?.toLocaleString() || '0'}
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${Math.min(100, (game.score / 1000) * 100)}%` }}
-                        ></div>
+                {gameScores.map((game, index) => {
+                  const scoreVal = (game.score ?? game.total_score_for_game ?? 0);
+                  const key = game.game_type_slug || game.game_slug || index;
+                  return (
+                    <div 
+                      key={key} 
+                      className="bg-gradient-to-br from-cyan-900/30 to-cyan-800/30 backdrop-blur-sm p-6 rounded-2xl border border-cyan-400/20 shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="text-center">
+                        <div className="text-5xl mb-4">{getGameIcon(game.game_type_slug || game.game_slug)}</div>
+                        <h3 className="text-xl font-semibold text-cyan-100 mb-2">
+                          {getGameName(game.game_type_slug || game.game_slug)}
+                        </h3>
+                        <div className="text-3xl font-bold text-cyan-300 mb-2">
+                          {scoreVal.toLocaleString()}
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-2 rounded-full transition-all duration-1000"
+                            style={{ width: `${Math.min(100, (scoreVal / 1000) * 100)}%` }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-sm p-12 rounded-2xl border border-gray-600/20">
