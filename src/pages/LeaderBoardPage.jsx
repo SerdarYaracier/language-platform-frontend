@@ -19,23 +19,40 @@ const LeaderboardPage = () => {
   useEffect(() => {
     const fetchLeaderboards = async () => {
       setIsLoading(true);
+      
+      // Fetch each leaderboard individually to handle missing endpoints gracefully
+      const fetchSingleLeaderboard = async (endpoint, fallback = []) => {
+        try {
+          const response = await api.get(endpoint);
+          return response.data;
+        } catch (error) {
+          if (error.response?.status === 501) {
+            console.warn(`Leaderboard endpoint not implemented: ${endpoint}`);
+          } else {
+            console.error(`Failed to fetch leaderboard from ${endpoint}:`, error);
+          }
+          return fallback;
+        }
+      };
+
       try {
-        const [totalRes, rushRes, imageRes, scrambleRes, blankRes] = await Promise.all([
-          api.get('/api/leaderboard/total-score'),
-          api.get('/api/leaderboard/mixed-rush'),
-          api.get('/api/leaderboard/game/image-match'),
-          api.get('/api/leaderboard/game/sentence-scramble'),
-          api.get('/api/leaderboard/game/fill-in-the-blank'),
+        const [totalScore, mixedRush, imageMatch, sentenceScramble, fillInBlank] = await Promise.all([
+          fetchSingleLeaderboard('/api/leaderboard/total-score'),
+          fetchSingleLeaderboard('/api/leaderboard/mixed-rush'),
+          fetchSingleLeaderboard('/api/leaderboard/game/image-match'),
+          fetchSingleLeaderboard('/api/leaderboard/game/sentence-scramble'),
+          fetchSingleLeaderboard('/api/leaderboard/game/fill-in-the-blank'),
         ]);
+
         setLeaderboards({
-          total_score: totalRes.data,
-          mixed_rush: rushRes.data,
-          image_match: imageRes.data,
-          sentence_scramble: scrambleRes.data,
-          fill_in_the_blank: blankRes.data,
+          total_score: totalScore,
+          mixed_rush: mixedRush,
+          image_match: imageMatch,
+          sentence_scramble: sentenceScramble,
+          fill_in_the_blank: fillInBlank,
         });
       } catch (error) {
-        console.error("Failed to fetch leaderboards", error);
+        console.error("Unexpected error in fetchLeaderboards", error);
       } finally {
         setIsLoading(false);
       }

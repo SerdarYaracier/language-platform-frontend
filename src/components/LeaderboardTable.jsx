@@ -76,9 +76,17 @@ const LeaderboardTable = ({ title, scores, isLoading }) => {
     <div className="bg-gray-800 p-6 rounded-lg">
       <h2 className="text-3xl font-bold mb-4 text-center">{title}</h2>
       <ol className="space-y-3">
-        {scores.map((entry, index) => (
+        {scores.map((entry, index) => {
+          // Prefer stable keys when available
+          const listKey = entry.id || entry.user_id || entry.username || index;
+          // Accept multiple possible score field names that backend might return.
+          // Fall back to 0 if none are present.
+          const rawScore = entry.score ?? entry.total_score ?? entry.total_score_for_game ?? entry.points ?? 0;
+          const numericScore = Number(rawScore) || 0;
+
+          return (
           <li 
-            key={index} 
+            key={listKey} 
             onClick={() => openProfile(entry)}
             role="button"
             tabIndex={0}
@@ -103,11 +111,12 @@ const LeaderboardTable = ({ title, scores, isLoading }) => {
                 {entry.username}
               </span>
             </div>
-            <span className={`font-bold text-2xl ${index < 3 ? 'text-white drop-shadow-lg' : 'text-cyan-400'}`}>
-              {entry.score.toLocaleString()}
+              <span className={`font-bold text-2xl ${index < 3 ? 'text-white drop-shadow-lg' : 'text-cyan-400'}`}>
+              {numericScore.toLocaleString()}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ol>
       <ProfileModal 
         isOpen={modalOpen}

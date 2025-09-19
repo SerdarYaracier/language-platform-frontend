@@ -40,9 +40,8 @@ const AvatarModal = ({ isOpen, onClose, currentAvatar, onAvatarUpdate }) => {
       formData.append('file', selectedFile);
 
       // Upload to your backend/supabase
-      const uploadResponse = await api.post('/api/upload-avatar', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      // Let Axios set the Content-Type (including boundary) for FormData
+      const uploadResponse = await api.post('/api/upload-avatar', formData);
 
       if (uploadResponse.data.avatar_url) {
         await onAvatarUpdate(uploadResponse.data.avatar_url);
@@ -171,6 +170,7 @@ const getGameIcon = (slug) => {
 
 const ProfilePage = () => {
   const { user } = useAuth();
+  const { refreshProfile, updateProfile } = useAuth();
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -179,8 +179,8 @@ const ProfilePage = () => {
 
   const handleAvatarUpdate = async (newAvatarUrl) => {
     try {
+      // Persist avatar URL to the profile record via API
       await api.post('/api/profile/avatar', { avatar_url: newAvatarUrl });
-      
       // Update local state
       setProfileData(prev => ({
         ...prev,
@@ -189,6 +189,10 @@ const ProfilePage = () => {
           avatar_url: newAvatarUrl
         }
       }));
+      // also update global auth profile quickly
+      try { updateProfile && updateProfile({ avatar_url: newAvatarUrl }); } catch (e) {}
+      // and refresh from backend to be safe
+      try { refreshProfile && await refreshProfile(); } catch (e) {}
     } catch (error) {
       console.error('Failed to update avatar:', error);
       throw error;
@@ -293,9 +297,7 @@ const ProfilePage = () => {
                         </span>
                       </div>
                     </button>
-                    <div className="absolute -bottom-2 -right-2 bg-green-500 w-8 h-8 rounded-full border-4 border-gray-900 flex items-center justify-center">
-                      <span className="text-xs">🌟</span>
-                    </div>
+                    {/* removed small green 'You' badge */}
                   </div>
                   
                   <h1 className="text-3xl lg:text-4xl font-bold mt-4 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">

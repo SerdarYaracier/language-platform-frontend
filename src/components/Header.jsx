@@ -8,7 +8,7 @@ import api from '../api';
 
 const Header = () => {
   const { targetLang, setLanguage } = useContext(LanguageContext);
-  const { user, signOut } = useAuth(); // Auth context'inden user ve signOut'u al
+  const { user, signOut, profile } = useAuth(); // Auth context'inden user, profile ve signOut'u al
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
@@ -68,10 +68,10 @@ const Header = () => {
     setShowLanguageDropdown(false);
   };
 
-  // helper: try a few common fields for user's avatar, fallback to placeholder
+  // helper: prefer profile.avatar_url from AuthContext, otherwise common fields
   const getUserAvatarCandidate = () => {
-    // prefer profile.avatar_url if present on profile record, otherwise common fields
     const raw =
+      profile?.avatar_url ||
       user?.profile?.avatar_url ||
       user?.photoURL ||
       user?.avatar ||
@@ -85,35 +85,13 @@ const Header = () => {
   const brokenAvatarsRef = React.useRef(new Set());
   const [avatarSrc, setAvatarSrc] = React.useState(() => getUserAvatarCandidate() || '/default-avatar.png');
  
-  // If auth.user lacks profile.avatar_url, fetch profile record and use its avatar_url
+  // React to user/profile changes
   useEffect(() => {
-    let mounted = true;
     const candidate = getUserAvatarCandidate();
     if (candidate && !brokenAvatarsRef.current.has(candidate)) {
       setAvatarSrc(candidate);
     }
-
-    const fetchProfileAvatar = async () => {
-      if (!user) return;
-      try {
-        const res = await api.get('/api/profile/');
-        const data = res.data;
-        const profile = (Array.isArray(data) && data[0]) || data.profile || data;
-        const raw = profile?.avatar_url;
-        const normalized = normalizeAvatar(raw);
-        if (mounted && normalized && !brokenAvatarsRef.current.has(normalized)) {
-          setAvatarSrc(normalized);
-        }
-      } catch (err) {
-        // silently ignore - keep existing avatarSrc
-        console.debug('Header: failed to fetch profile for avatar', err);
-      }
-    };
-
-    fetchProfileAvatar();
-    return () => { mounted = false; };
-  // react when user or underlying avatar fields change
-  }, [user?.profile?.avatar_url, user?.photoURL, user?.avatar, user?.profile?.avatar, user?.user_metadata?.avatar_url, user]);
+  }, [profile, user?.profile?.avatar_url, user?.photoURL, user?.avatar, user?.user_metadata?.avatar_url, user]);
 
   return (
     <>

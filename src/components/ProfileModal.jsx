@@ -125,11 +125,7 @@ const ProfileModal = ({ isOpen, onClose, profileData, isLoading }) => {
                       className="w-full h-full rounded-full bg-slate-800 object-cover"
                     />
                   </div>
-                  {user?.id === profileId && (
-                    <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white text-xs px-3 py-1 rounded-full border border-cyan-400/30">
-                      You
-                    </div>
-                  )}
+                  {/* removed small 'You' badge */}
                 </div>
 
                 {/* Profile Info */}
