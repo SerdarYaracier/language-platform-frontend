@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom scrollbar styling to blend with dark theme */
+/* WebKit browsers */
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track {
+	background: rgba(255,255,255,0.02); /* very subtle */
+	border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb {
+	background: rgba(56,189,248,0.12); /* cyan-ish subtle */
+	border-radius: 9999px;
+	border: 2px solid rgba(0,0,0,0.25);
+}
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(56,189,248,0.22);
+}
+
+/* Firefox */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(56,189,248,0.12) rgba(255,255,255,0.02);
+}
+
+/* For very dark backgrounds, ensure focused outlines remain visible */
+:focus {
+	outline-color: rgba(56,189,248,0.4);
+	outline-offset: 2px;
+}

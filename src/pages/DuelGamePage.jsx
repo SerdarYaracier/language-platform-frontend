@@ -1,8 +1,9 @@
 // frontend/src/pages/DuelGamePage.jsx
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useContext } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api';
 import { useAuth } from '../context/AuthContext';
+import { LanguageContext } from '../context/LanguageContext';
 import SentenceScrambleGame from '../components/games/SentenceScrambleGame';
 import ImageMatchGame from '../components/games/ImageMatchGame';
 import FillInTheBlankGame from '../components/games/FillInTheBlankGame';
@@ -25,6 +26,7 @@ const GAME_TYPE_COMPONENTS = {
 
 const DuelGamePage = () => {
   const { user, refreshProfile } = useAuth();
+  const { targetLang: uiTargetLang } = useContext(LanguageContext);
   const { duelId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -41,6 +43,7 @@ const DuelGamePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isGameStarted, setIsGameStarted] = useState(false);
+  const [duelLanguage, setDuelLanguage] = useState(null); // Store the language chosen by challenger
 
   const scoreRef = useRef(score);
   const timerRef = useRef(null);
@@ -61,10 +64,8 @@ const DuelGamePage = () => {
         }
         // Backend'e difficulty_level'i int olarak gönderiyoruz
         response = await api.post('/api/duel/generate-questions', { difficulty_level: difficulty });
-        console.log('[DuelGamePage] generate-questions response:', response.data);
         // defensive: some backends return questions directly or as {questions: [...]}
         const q = response.data?.questions ?? response.data ?? [];
-        console.log('[DuelGamePage] extracted questions:', q);
         
         // CHALLENGER - Soru ID'lerini logla
         const challengerQuestionIds = q.map((question, index) => {
@@ -72,14 +73,18 @@ const DuelGamePage = () => {
           const gameType = question.game_item?.game_type_id || question.game_type_id;
           return `${index+1}. ID:${id} Type:${gameType}`;
         });
-        console.log('[CHALLENGER QUESTIONS]:', challengerQuestionIds);
+        
         
         setQuestions(q);
       } else if (duelId) {
         response = await api.get(`/api/duel/duel-questions/${duelId}`);
-        console.log('[DuelGamePage] duel-questions response:', response.data);
         const q = response.data?.questions ?? response.data ?? [];
-        console.log('[DuelGamePage] extracted questions:', q);
+        
+        // Extract duel language if provided by backend
+        const savedDuelLang = response.data?.duel_language || response.data?.language || null;
+        if (savedDuelLang) {
+          setDuelLanguage(savedDuelLang);
+        }
         
         // CHALLENGED - Soru ID'lerini logla
         const challengedQuestionIds = q.map((question, index) => {
@@ -87,7 +92,7 @@ const DuelGamePage = () => {
           const gameType = question.game_item?.game_type_id || question.game_type_id;
           return `${index+1}. ID:${id} Type:${gameType}`;
         });
-        console.log('[CHALLENGED QUESTIONS]:', challengedQuestionIds);
+        
         
         setQuestions(q);
       } else {
@@ -150,17 +155,17 @@ const DuelGamePage = () => {
               challenger_score: finalScore,
               challenger_time_taken: finalTimeTaken,
               challenger_answers: answers,
-              questions: questions  // SORULARI DA GÖNDERİYORUZ!
+              questions: questions,  // SORULARI DA GÖNDERİYORUZ!
+              duel_language: uiTargetLang || user?.target_language || 'en'  // CHALLENGER'IN SEÇTİĞİ DİLİ KAYDET
             });
-            console.log("Challenger duel created:", createDuelResponse.data);
-            console.log("Questions sent to backend:", questions.length, "questions");
+            
           } else if (duelId) {
             const submitDuelResponse = await api.post(`/api/duel/submit-duel-result/${duelId}`, {
               score: finalScore,
               time_taken: finalTimeTaken,
               answers: answers
             });
-            console.log("Challenged duel submitted:", submitDuelResponse.data);
+            
           }
           refreshProfile();
           navigate('/duels');
@@ -183,24 +188,18 @@ const DuelGamePage = () => {
       setScore(prev => prev + points);
     }
 
-    console.log('[DuelGamePage] handleCorrectAnswer called for index:', currentQuestionIndex);
+    
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => {
-        console.log('[DuelGamePage] advancing index from', prev, 'to', prev + 1);
-        return prev + 1;
-      });
+      setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setIsGameOver(true);
     }
   }, [questions, currentQuestionIndex]);
 
   const handleWrongAnswer = useCallback(() => {
-    console.log('[DuelGamePage] handleWrongAnswer called for index:', currentQuestionIndex);
+    
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => {
-        console.log('[DuelGamePage] advancing index from', prev, 'to', prev + 1);
-        return prev + 1;
-      });
+      setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setIsGameOver(true);
     }
@@ -210,7 +209,7 @@ const DuelGamePage = () => {
   useEffect(() => {
     if (questions.length === 0) return;
     const current = questions[currentQuestionIndex];
-    console.log('[DuelGamePage] currentQuestionIndex changed:', currentQuestionIndex, 'currentQuestion:', current && (current.duel_question_id || current.game_item?.id || current.game_item?.game_item_id || current.id));
+    
   }, [currentQuestionIndex, questions]);
 
   const currentGameComponent = useMemo(() => {
@@ -238,16 +237,11 @@ const DuelGamePage = () => {
     // Your DB stores question payload in `content` (jsonb). Support stringified JSON or object.
   const gameSpecificData = typeof content === 'string' ? JSON.parse(content) : content;
 
-  console.log('[DuelGamePage] question shape used:', currentQuestion.game_item ? 'nested.game_item' : 'flat');
+  
 
-    console.log('[DuelGamePage] Rendering question index:', currentQuestionIndex);
-    console.log('[DuelGamePage] currentQuestion:', currentQuestion);
-    console.log('[DuelGamePage] content:', content);
-    console.log('[DuelGamePage] gameSpecificData:', gameSpecificData);
-    console.log('[DuelGamePage] game_type_id:', game_type_id);
-
-    // DuelGamePage için data'yı MixedRush gibi düzleştir - user'ın target language'ine göre
-    const userLang = user?.target_language || 'en'; // varsayılan İngilizce
+    // DuelGamePage için data'yı MixedRush gibi düzleştir - önce UI seçiminden sonra profile'dan al
+    // For challenged players, use the duel's saved language if available
+    const userLang = duelLanguage || uiTargetLang || user?.target_language || 'en'; // varsayılan İngilizce
     
     const flattenedData = {
       ...gameSpecificData,
@@ -270,12 +264,10 @@ const DuelGamePage = () => {
       flattenedData.shuffled_words = shuffled;
       flattenedData.correct_sentence = sentence;
       
-      console.log('[DuelGamePage] Generated shuffled_words for SentenceScramble:', shuffled);
-      console.log('[DuelGamePage] correct_sentence:', sentence);
+      
     }
 
-    console.log('[DuelGamePage] userLang:', userLang);
-    console.log('[DuelGamePage] flattenedData:', flattenedData);
+    
 
     return (
       <GameComponent
@@ -285,7 +277,7 @@ const DuelGamePage = () => {
         isDuelMode={true}
       />
     );
-  }, [questions, currentQuestionIndex, user?.target_language, handleCorrectAnswer, handleWrongAnswer]);
+  }, [questions, currentQuestionIndex, duelLanguage, uiTargetLang, user?.target_language, handleCorrectAnswer, handleWrongAnswer]);
 
   const renderCurrentGame = () => {
     return currentGameComponent;
@@ -295,17 +287,26 @@ const DuelGamePage = () => {
   if (error) return <div className="text-red-500 text-center mt-8 text-2xl font-bold">{error}</div>;
 
   if (!isGameStarted) {
+    // Prevent challenged players from starting before we know the challenger's chosen language
+    const startDisabled = !isChallengerMode && duelLanguage === null;
+    const startButtonText = startDisabled ? 'Waiting for challenger language...' : 'START DUEL';
+
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4">
         <h1 className="text-4xl font-bold mb-6">Duel Ready!</h1>
         <p className="text-xl mb-4">You have {GAME_DURATION} seconds to answer 20 questions.</p>
         <p className="text-lg mb-8">Beat your opponent's score!</p>
         <button
-          onClick={() => setIsGameStarted(true)}
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-lg text-2xl transition-all duration-300"
+          onClick={() => !startDisabled && setIsGameStarted(true)}
+          disabled={startDisabled}
+          className={`bg-red-600 ${startDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-700'} text-white font-bold py-4 px-8 rounded-lg text-2xl transition-all duration-300`}
+          title={startDisabled ? 'Waiting for challenger language to arrive...' : 'Start duel'}
         >
-          START DUEL
+          {startButtonText}
         </button>
+        {startDisabled && (
+          <p className="text-sm text-gray-400 mt-2">Waiting for challenger to choose the duel language...</p>
+        )}
       </div>
     );
   }

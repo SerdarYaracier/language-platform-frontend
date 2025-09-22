@@ -5,6 +5,37 @@ import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner'; // Loading spinner bileşenini kullanıyoruz
 
 const DuelsListPage = ({ embedded = false }) => {
+  // small map for displaying friendly language names from codes
+  const LANG_NAMES = {
+    en: 'English',
+    tr: 'Türkçe',
+    es: 'Español',
+    fr: 'Français',
+    de: 'Deutsch',
+    ja: '日本語',
+    jp: '日本語',
+    zh: '中文',
+    'zh-cn': '中文 (简体)',
+    'zh-tw': '中文 (繁體)',
+    pt: 'Português',
+    ru: 'Русский',
+    it: 'Italiano',
+    nl: 'Nederlands',
+    sv: 'Svenska',
+    no: 'Norsk',
+    pl: 'Polski',
+    ko: '한국어',
+  };
+
+  const resolveDuelLanguageLabel = (duel) => {
+    const raw = duel?.duel_language || duel?.language || duel?.language_code || 'en';
+    const code = String(raw || 'en').toLowerCase();
+    // try exact match, then try prefix match (e.g. 'ja-jp' -> 'ja')
+    if (LANG_NAMES[code]) return LANG_NAMES[code];
+    const prefix = code.split(/[-_]/)[0];
+    if (LANG_NAMES[prefix]) return LANG_NAMES[prefix];
+    return code;
+  };
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('incoming'); // 'incoming', 'sent', 'completed'
@@ -27,9 +58,7 @@ const DuelsListPage = ({ embedded = false }) => {
     setError('');
     try {
       const response = await api.get('/api/duel/my-duels');
-      setDuelsData(response.data);
-      console.log('[DuelsListPage] fetched duels:', response.data);
-
+  setDuelsData(response.data);
       // after fetching duels, find any opponent ids missing avatar_url and fetch their full profile
       try {
         const allDuels = response.data.pending_challenges_for_me.concat(response.data.my_sent_challenges, response.data.completed_duels);
@@ -43,7 +72,6 @@ const DuelsListPage = ({ embedded = false }) => {
         });
 
         if (missingIds.size > 0) {
-          console.log('[DuelsListPage] need to fetch avatars for ids:', Array.from(missingIds));
           const promises = Array.from(missingIds).map(id =>
             api.get(`/api/profile/${encodeURIComponent(id)}`)
               .then(res => ({ id, data: res.data }))
@@ -67,7 +95,6 @@ const DuelsListPage = ({ embedded = false }) => {
               return;
             }
             const d = r.data;
-            console.log('[DuelsListPage] profile response for', r.id, d);
             // possible shapes: { profile: { avatar_url: ... } } or { avatar_url: '...' } or array
             let fetchedAvatar = null;
             if (!d) fetchedAvatar = null;
@@ -90,9 +117,8 @@ const DuelsListPage = ({ embedded = false }) => {
                 }
               }
               updates[r.id] = finalUrl;
-              console.log('[DuelsListPage] fetched avatar for', r.id, finalUrl);
             } else {
-              console.log('[DuelsListPage] no avatar found in profile response for', r.id);
+              
               // mark as attempted so we don't re-request repeatedly
               updates[r.id] = null;
             }
@@ -129,7 +155,6 @@ const DuelsListPage = ({ embedded = false }) => {
       };
       // if we have an override from avatarMap, use it
       if (avatarMap[info.id]) info.avatar_url = avatarMap[info.id];
-      console.log('[DuelsListPage] opponent resolved (challenged):', info);
       return info;
     } else {
       const info = {
@@ -139,7 +164,6 @@ const DuelsListPage = ({ embedded = false }) => {
         type: 'challenger'
       };
       if (avatarMap[info.id]) info.avatar_url = avatarMap[info.id];
-      console.log('[DuelsListPage] opponent resolved (challenger):', info);
       return info;
     }
   };
@@ -175,14 +199,14 @@ const DuelsListPage = ({ embedded = false }) => {
             className={`py-3 px-6 text-lg font-semibold transition-colors duration-200 
                         ${activeTab === 'incoming' ? 'text-red-400 border-b-2 border-red-400' : 'text-gray-400 hover:text-white'}`}
           >
-            Incoming Challenges ({duelsData.pending_challenges_for_me.length})
+            Incoming Duels({duelsData.pending_challenges_for_me.length})
           </button>
           <button
             onClick={() => setActiveTab('sent')}
             className={`py-3 px-6 text-lg font-semibold transition-colors duration-200 
                         ${activeTab === 'sent' ? 'text-red-400 border-b-2 border-red-400' : 'text-gray-400 hover:text-white'}`}
           >
-            My Sent Challenges ({duelsData.my_sent_challenges.length})
+            My Sent Duels ({duelsData.my_sent_challenges.length})
           </button>
           <button
             onClick={() => setActiveTab('completed')}
@@ -196,7 +220,7 @@ const DuelsListPage = ({ embedded = false }) => {
         {/* İçerik Alanı */}
         <div className="space-y-4">
           {activeTab === 'incoming' && (
-            <div>
+            <div className="space-y-4 max-h-72 overflow-auto pr-2">{/* limit height to ~4 items, enable scroll */}
               {duelsData.pending_challenges_for_me.length > 0 ? (
                 duelsData.pending_challenges_for_me.map(duel => {
                   const opponent = getOpponentInfo(duel);
@@ -213,7 +237,7 @@ const DuelsListPage = ({ embedded = false }) => {
                           <div className="w-12 h-12 rounded-full bg-gray-600 border border-gray-500" />
                         )}
                         <div>
-                          <p className="text-lg font-bold text-white">{opponent.username} challenged you!</p>
+                          <p className="text-lg font-bold text-white">{opponent.username} challenged you on <span className="font-semibold text-cyan-300">{resolveDuelLanguageLabel(duel)}</span>!</p>
                           <p className="text-sm text-gray-300">Difficulty: {duel.difficulty_level === 0 ? 'ALL' : `Level ${duel.difficulty_level}`}</p>
                         </div>
                       </div>
@@ -236,7 +260,7 @@ const DuelsListPage = ({ embedded = false }) => {
           )}
 
           {activeTab === 'sent' && (
-            <div>
+            <div className="space-y-4 max-h-72 overflow-auto pr-2">{/* limit height to ~4 items, enable scroll */}
               {duelsData.my_sent_challenges.length > 0 ? (
                 duelsData.my_sent_challenges.map(duel => {
                   const opponent = getOpponentInfo(duel);
@@ -253,7 +277,7 @@ const DuelsListPage = ({ embedded = false }) => {
                           <div className="w-12 h-12 rounded-full bg-gray-600 border border-gray-500" />
                         )}
                         <div>
-                          <p className="text-lg font-bold text-white">You challenged {opponent.username}</p>
+                          <p className="text-lg font-bold text-white">You challenged {opponent.username} on <span className="font-semibold text-cyan-300">{resolveDuelLanguageLabel(duel)}</span></p>
                           <p className="text-sm text-gray-300">Difficulty: {duel.difficulty_level === 0 ? 'ALL' : `Level ${duel.difficulty_level}`}</p>
                           <p className="text-sm text-gray-400">Your Score: {duel.challenger_score}</p>
                         </div>
@@ -269,7 +293,7 @@ const DuelsListPage = ({ embedded = false }) => {
           )}
 
           {activeTab === 'completed' && (
-            <div>
+            <div className="space-y-4 max-h-72 overflow-auto pr-2">{/* limit height to ~4 items, enable scroll */}
               {duelsData.completed_duels.length > 0 ? (
                 duelsData.completed_duels.map(duel => {
                   const opponent = getOpponentInfo(duel);
