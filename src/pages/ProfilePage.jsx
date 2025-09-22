@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api';
 import AchievementsList from '../components/AchievementsList';
 import FriendsModal from '../components/FriendsModal';
+import DuelSetupModal from '../components/DuelSetupModal';
+import DuelsListPage from './DuelsListPage';
 
 // Supabase bucket for decorative assets
 const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
@@ -176,6 +178,9 @@ const ProfilePage = () => {
   const [error, setError] = useState('');
   const [isFriendsModalOpen, setIsFriendsModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [isDuelPopupOpen, setIsDuelPopupOpen] = useState(false);
+  const [duelFriends, setDuelFriends] = useState([]);
+  const [selectedDuelTarget, setSelectedDuelTarget] = useState(null);
 
   const handleAvatarUpdate = async (newAvatarUrl) => {
     try {
@@ -317,6 +322,31 @@ const ProfilePage = () => {
                     />
                     <span>Friends</span>
                   </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { data } = await api.get('/api/social/friends');
+                        const friends = data.friends || [];
+                        setDuelFriends(friends);
+                        setSelectedDuelTarget(friends[0] || null);
+                        setIsDuelPopupOpen(true);
+                      } catch (e) {
+                        console.warn('Failed to load friends for duel', e);
+                        setDuelFriends([]);
+                        setSelectedDuelTarget(null);
+                        // still open modal but without opponent would be confusing; don't open
+                      }
+                    }}
+                    className="mt-4 ml-0 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold py-3 px-5 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg border border-red-400/20 flex items-center"
+                  >
+                    <img
+                      src={`${SUPABASE_BUCKET_URL}/duel_gecko.png`}
+                      alt="duel gecko"
+                      className="w-12 h-12 rounded-full object-cover mr-3"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <span className="text-sm">DUEL!!!</span>
+                  </button>
                 </div>
 
                 {/* Stats Cards - Horizontal Layout */}
@@ -402,6 +432,16 @@ const ProfilePage = () => {
             )}
           </div>
 
+          {/* My Duels Section */}
+          <div className="mb-12">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-red-300 to-orange-300 bg-clip-text text-transparent">
+              ⚔️ My Duels
+            </h2>
+            <div className="bg-gradient-to-br from-red-900/20 to-orange-900/20 backdrop-blur-sm p-8 rounded-3xl border border-red-400/20 shadow-2xl">
+              <DuelsListPage embedded={true} />
+            </div>
+          </div>
+
           {/* Achievements Section */}
           <div className="relative bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm p-8 rounded-3xl border border-purple-400/20 shadow-2xl overflow-hidden">
             {/* Left medal gecko */}
@@ -434,12 +474,21 @@ const ProfilePage = () => {
         onClose={() => setIsFriendsModalOpen(false)} 
       />
 
+      
+
       {/* Avatar Modal */}
       <AvatarModal
         isOpen={isAvatarModalOpen}
         onClose={() => setIsAvatarModalOpen(false)}
         currentAvatar={avatarUrl}
         onAvatarUpdate={handleAvatarUpdate}
+      />
+
+      {/* Duel Setup Modal (server-backed duel creator) */}
+      <DuelSetupModal
+        isOpen={isDuelPopupOpen}
+        onClose={() => setIsDuelPopupOpen(false)}
+        friends={duelFriends}
       />
     </>
   );

@@ -106,7 +106,7 @@ const DroppableArea = ({ id, words, title }) => {
 };
 
 // 🟢 Ana oyun componenti
-const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, onWrongAnswer, isMixedRush }) => {
+const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswer, onWrongAnswer, isMixedRush, isDuelMode = false }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -392,7 +392,8 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
       setFeedback('Correct!');
       if (typeof onCorrectAnswer === 'function') {
         setTimeout(onCorrectAnswer, 300);
-      } else {
+      } else if (!isDuelMode) {
+        // only auto-submit/advance when NOT in duel mode
         submitScore();
         setTimeout(() => {
           fetchGame();
@@ -401,8 +402,8 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
     } else {
       setFeedback('Wrong!');
       
-      // MixedRush modunda yanlış cevap için özel işlem
-      if (isMixedRush && typeof onWrongAnswer === 'function') {
+      // MixedRush veya DuelMode'da yanlış cevap için özel işlem
+      if ((isMixedRush || isDuelMode) && typeof onWrongAnswer === 'function') {
         setTimeout(onWrongAnswer, 300);
       }
       // Normal modda kullanıcı tekrar deneyebilir

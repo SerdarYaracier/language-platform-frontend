@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 // Supabase public bucket for decorative assets (gecko icons)
 const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
-const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
+const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush, isDuelMode = false }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -196,7 +196,8 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
       setLastResult('correct');
       if (typeof onCorrectAnswer === 'function') {
         setTimeout(onCorrectAnswer, 300);
-      } else {
+      } else if (!isDuelMode) {
+        // only auto-submit/advance when NOT in duel mode
         submitScore();
         setTimeout(() => {
           fetchGame(); // Bir sonraki soruyu getir
@@ -206,8 +207,8 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
       setFeedback(`Wrong! Correct answer: ${gameData.answer}`);
       setLastResult('wrong');
       
-      // MixedRush modunda yanlış cevap için özel işlem
-      if (isMixedRush && typeof onWrongAnswer === 'function') {
+      // MixedRush veya DuelMode'da yanlış cevap için özel işlem
+      if ((isMixedRush || isDuelMode) && typeof onWrongAnswer === 'function') {
         setTimeout(onWrongAnswer, 300);
       }
       // Normal modda otomatik geçiş yok
@@ -390,7 +391,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
             </div>
           </div>
           
-          {feedback !== '🎉 Correct!' && !isMixedRush && (
+          {feedback !== '🎉 Correct!' && !isMixedRush && !isDuelMode && (
             <div>
               <button
                 onClick={handleNextQuestion}

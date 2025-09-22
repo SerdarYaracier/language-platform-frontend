@@ -14,6 +14,8 @@ import LevelSelectionPage from './pages/LevelSelectionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProfilePage from './pages/ProfilePage';
 import LeaderboardPage from './pages/LeaderBoardPage';
+import DuelGamePage from './pages/DuelGamePage';
+import DuelsListPage from './pages/DuelsListPage';
 
 
 
@@ -38,6 +40,11 @@ function App() {
           
           <Route path="/game/mixed-rush" element={<MixedRushGame />} />
           <Route path="/leaderboards" element={<LeaderboardPage />} />
+
+          <Route path="/duel/:duelId" element={<ProtectedRoute><DuelGamePage /></ProtectedRoute>} />
+          {/* Challenger için yeni duel oluşturma akışı (query parametreleriyle) */}
+          <Route path="/duel/play" element={<ProtectedRoute><DuelGamePage /></ProtectedRoute>} /> 
+          <Route path="/duels" element={<ProtectedRoute><DuelsListPage /></ProtectedRoute>} />
           
           {/* YENİ GÜVENLİ PROFİL ROTASI */}
           <Route 

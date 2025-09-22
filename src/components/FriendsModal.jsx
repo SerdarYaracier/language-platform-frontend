@@ -29,6 +29,7 @@ const FriendsModal = ({ isOpen, onClose }) => {
   const [showRequestsPopup, setShowRequestsPopup] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [showFriendProfile, setShowFriendProfile] = useState(false);
+  
 
   // Arkadaşları ve istekleri getiren fonksiyon
   const fetchFriendsData = useCallback(async () => {
@@ -234,7 +235,7 @@ const FriendsModal = ({ isOpen, onClose }) => {
                   <div className="space-y-2 mt-2">
                       {friendsData.friends.map(friend => (
                           <div 
-                            key={friend.id} 
+                            key={friend.id || friend.username} 
                             onClick={() => handleFriendClick(friend)}
                             className="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors"
                             role="button"

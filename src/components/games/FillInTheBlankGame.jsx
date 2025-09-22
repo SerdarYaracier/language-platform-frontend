@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL;
 // Supabase bucket for decorative game assets
 const SUPABASE_BUCKET_URL = 'https://vtwqtsjhobbiyvzdnass.supabase.co/storage/v1/object/public/stuffs';
 
-const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush }) => {
+const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categorySlug, level, isMixedRush, isDuelMode = false }) => {
   const navigate = useNavigate();
   const { targetLang } = useContext(LanguageContext);
   const { refreshProfile } = useAuth();
@@ -60,8 +60,8 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
     setFeedback('');
     setCurrentGameId(null);
 
-    // If category required and not provided (and not MixedRush), redirect
-    if (!categorySlug && !isMixedRush) {
+    // If category required and not provided (and not MixedRush or DuelMode), redirect
+    if (!categorySlug && !isMixedRush && !isDuelMode) {
       navigate('/categories/fill-in-the-blank');
       return;
     }
@@ -157,7 +157,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
 
   useEffect(() => {
     // If categorySlug is required by the backend, redirect user to selection page
-    if (!categorySlug && !isMixedRush) {
+    if (!categorySlug && !isMixedRush && !isDuelMode) {
       navigate('/categories/fill-in-the-blank');
       return;
     }
@@ -168,9 +168,17 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
     setGameData(null);
     setIsLoading(true);
 
+    // In duel mode, data comes from initialData, don't fetch
+    if (isDuelMode && initialData) {
+      console.log('[FillInTheBlankGame] duel mode with initialData, setting up game');
+      setGameData(initialData);
+      setIsLoading(false);
+      return;
+    }
+
     fetchGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetLang, categorySlug, level, isMixedRush]);
+  }, [targetLang, categorySlug, level, isMixedRush, isDuelMode, initialData]);
 
   const submitScore = async () => {
     if (isMixedRush) return;
@@ -200,6 +208,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
     if (feedback) return;
 
     setSelectedOption(option);
+    console.log('[FillInTheBlankGame] option clicked:', option, 'gameData.answer:', gameData?.answer, 'isDuelMode:', isDuelMode);
     if (option === gameData.answer) {
       setFeedback('Correct!');
       // currentGameId already marked as seen during fetch; ensure persisted
@@ -207,8 +216,10 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
       if (currentGameId) addSeen(key, currentGameId);
 
       if (typeof onCorrectAnswer === 'function') {
+        console.log('[FillInTheBlankGame] calling onCorrectAnswer callback');
         setTimeout(onCorrectAnswer, 300);
-      } else {
+      } else if (!isDuelMode) {
+        // only auto-submit/advance when NOT in duel mode
         submitScore();
         // auto-advance to next question after 0.3s
         nextTimeoutRef.current = setTimeout(() => {
@@ -218,9 +229,11 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
       }
     } else {
       setFeedback('Wrong!');
+      console.log('[FillInTheBlankGame] selected wrong option, isMixedRush:', isMixedRush, 'isDuelMode:', isDuelMode);
       
-      // MixedRush modunda yanlış cevap için özel işlem
-      if (isMixedRush && typeof onWrongAnswer === 'function') {
+      // MixedRush veya DuelMode'da yanlış cevap için özel işlem
+      if ((isMixedRush || isDuelMode) && typeof onWrongAnswer === 'function') {
+        console.log('[FillInTheBlankGame] calling onWrongAnswer callback');
         setTimeout(onWrongAnswer, 300);
       }
       // Normal modda manuel "Next Question" butonu var
@@ -349,7 +362,7 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
             />
             <span>{feedback}</span>
           </div>
-           {feedback === 'Wrong!' && !isMixedRush && (
+           {feedback === 'Wrong!' && !isMixedRush && !isDuelMode && (
              <div>
                <button
                  onClick={fetchGame}
