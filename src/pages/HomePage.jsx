@@ -109,10 +109,10 @@ const HomePage = () => {
         </div>
          
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/10 to-purple-600/10"></div>
-        <div className="relative z-20 px-6 py-16 text-left">
+        <div className="relative z-20 px-6 py-16 pb-20 text-left">
            <div className="max-w-4xl mx-auto">
              {/* Main Title - Left aligned */}
-             <h1 className="text-5xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent leading-normal text-left">
+             <h1 className="relative z-50 text-5xl lg:text-7xl font-bold mb-6 pb-6 bg-gradient-to-r from-cyan-300 via-white to-purple-300 bg-clip-text text-transparent leading-relaxed text-left">
                LingoSolve
              </h1>
              

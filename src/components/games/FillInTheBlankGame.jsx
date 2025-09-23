@@ -22,8 +22,10 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
   const GAME_KEY_BASE = 'seenIds:fill-in-the-blank';
 
   const getKey = () => {
-    // Per-category+level key so different levels/categories don't share seen ids
-    return `${GAME_KEY_BASE}:${categorySlug || 'global'}:${level || 1}`;
+    // Include normalized 2-letter targetLang in the key so seen IDs / completion are tracked per language.
+    const langPart = (targetLang || 'en').toString().slice(0, 2);
+    // Per-lang + per-category + per-level key so different levels/categories and languages don't share seen ids
+    return `${GAME_KEY_BASE}:${langPart}:${categorySlug || 'global'}:${level || 1}`;
   };
 
   const getGameId = (d) => d?.id || d?.game_id || d?._id || null;
@@ -191,13 +193,17 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
     };
     
     try {
-      await api.post('/api/progress/submit-score', {
+      const normalizedLang = (targetLang || 'en').toString().slice(0, 2);
+      const payload = {
         gameSlug: 'fill-in-the-blank',
         categorySlug: categorySlug,
         level: level,
         points: getPointsForLevel(level), // Send calculated points
-      });
-      console.log('Score submitted for fill-in-the-blank');
+        lang: normalizedLang, // Include normalized target language for proper progress tracking
+      };
+      console.debug('[FillInTheBlankGame] submitScore payload:', payload);
+      await api.post('/api/progress/submit-score', payload);
+      console.log('Score submitted for fill-in-the-blank', payload);
       if (typeof refreshProfile === 'function') refreshProfile();
     } catch (error) {
       console.error('Failed to submit score', error);
@@ -289,8 +295,9 @@ const FillInTheBlankGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categ
           {level < 5 && (
             <button
               onClick={() => {
-                // reset seen ids for next level navigation
-                const nextKey = `${GAME_KEY_BASE}:${categorySlug}:${parseInt(level) + 1}`;
+                // reset seen ids for next level navigation (language-specific key)
+                const langPart = (targetLang || 'en').toString().slice(0,2);
+                const nextKey = `${GAME_KEY_BASE}:${langPart}:${categorySlug}:${parseInt(level) + 1}`;
                 setSeenIdsDirect(nextKey, []);
                 navigate(`/game/fill-in-the-blank/${categorySlug}/${parseInt(level) + 1}`);
               }}

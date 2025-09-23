@@ -377,6 +377,7 @@ const SentenceScrambleGame = ({ categorySlug, level, initialData, onCorrectAnswe
         categorySlug: categorySlug,
         level: level,
         points: getPointsForLevel(level), // Send calculated points
+        lang: targetLang, // Include target language for proper progress tracking
       });
       console.log('Score submitted for sentence-scramble');
       if (typeof refreshProfile === 'function') refreshProfile();

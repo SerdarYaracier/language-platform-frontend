@@ -60,7 +60,8 @@ const MixedRushGame = () => {
     try {
       // Skoru doğrudan en güncel değeri tutan scoreRef'ten alıyoruz
       await api.post('/api/progress/submit-mixed-rush-score', {
-        score: scoreRef.current 
+        score: scoreRef.current,
+        lang: targetLang // Include target language for proper progress tracking
       });
       console.log('Mixed Rush final score submitted:', scoreRef.current);
       if (refreshProfile) {

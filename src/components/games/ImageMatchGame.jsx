@@ -180,6 +180,7 @@ const ImageMatchGame = ({ initialData, onCorrectAnswer, onWrongAnswer, categoryS
         categorySlug: categorySlug,
         level: level,
         points: getPointsForLevel(level), // Send calculated points
+        lang: targetLang, // Include target language for proper progress tracking
       });
       if (typeof refreshProfile === 'function') refreshProfile();
     } catch (error) {
